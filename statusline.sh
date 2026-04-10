@@ -204,36 +204,33 @@ fi
 printf "\n"
 
 # ===================================================
-# Line 2: DevLauncher (cached 3s, spinner every 1s)
+# Line 2: DevLauncher (fully async, cache only)
 # ===================================================
-# Auto-detect DevLauncher (no config needed - shows if installed, hides if not)
-DL=""
-for c in "/mnt/c/Users/$USER/DevLauncher.ps1" /mnt/c/Users/*/DevLauncher.ps1 "$HOME/DevLauncher.ps1"; do
-    for f in $c; do [ -f "$f" ] && DL="$f" && break 2; done
-done
-[ -z "$DL" ] && [ -n "$USERPROFILE" ] && {
-    wp=$(echo "$USERPROFILE" | sed 's|\\|/|g; s|^\([A-Z]\):|/mnt/\L\1|')
-    [ -f "$wp/DevLauncher.ps1" ] && DL="$wp/DevLauncher.ps1"
-}
-[ -z "$DL" ] && exit 0
-
-# Cache
 CACHE="/tmp/.devlauncher-status-cache"
-now=$(date +%s)
-refresh=false
-if [ -f "$CACHE" ]; then
-    cached_at=$(head -1 "$CACHE")
-    [ $(( now - cached_at )) -ge 3 ] && refresh=true
-else
-    refresh=true
+LOCK="/tmp/.devlauncher-refresh.lock"
+
+# Background refresh (never blocks main output)
+if [ ! -f "$LOCK" ]; then
+    now=$(date +%s)
+    need_refresh=true
+    [ -f "$CACHE" ] && cached_at=$(head -1 "$CACHE") && [ $(( now - cached_at )) -lt 10 ] && need_refresh=false
+    if [ "$need_refresh" = "true" ]; then
+        touch "$LOCK"
+        ( DL=""; for c in "/mnt/c/Users/$USER/DevLauncher.ps1" "$HOME/DevLauncher.ps1"; do [ -f "$c" ] && DL="$c" && break; done
+          if [ -n "$DL" ]; then
+            ws=$(echo "$DL" | sed 's|^/mnt/\(.\)|\U\1:|; s|/|\\|g')
+            r=$(timeout 5 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ws" status 2>/dev/null | tr -d '\r')
+            { echo "$(date +%s)"; echo "$r"; } > "$CACHE"
+          fi
+          rm -f "$LOCK"
+        ) &
+        disown
+    fi
 fi
-if [ "$refresh" = "true" ]; then
-    ws=$(echo "$DL" | sed 's|^/mnt/\(.\)|\U\1:|; s|/|\\|g')
-    raw=$(powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ws" status 2>/dev/null | tr -d '\r')
-    { echo "$now"; echo "$raw"; } > "$CACHE"
-else
-    raw=$(tail -n +2 "$CACHE")
-fi
+
+# Read from cache (instant)
+raw=""
+[ -f "$CACHE" ] && raw=$(tail -n +2 "$CACHE")
 
 # Render
 parts=""
