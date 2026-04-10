@@ -9,6 +9,8 @@ const settingsPath = path.join(claudeDir, 'settings.json');
 const scriptDest = path.join(claudeDir, 'statusline.sh');
 const confDest = path.join(claudeDir, 'statusline.conf');
 const scriptSrc = path.join(__dirname, 'statusline.sh');
+const scriptPsSrc = path.join(__dirname, 'statusline.ps1');
+const scriptPsDest = path.join(claudeDir, 'statusline.ps1');
 const confSrc = path.join(__dirname, 'statusline.conf.example');
 
 const cmd = process.argv[2];
@@ -16,10 +18,12 @@ const cmd = process.argv[2];
 function install() {
   if (!fs.existsSync(claudeDir)) fs.mkdirSync(claudeDir, { recursive: true });
 
-  // Copy statusline.sh
+  // Copy both statusline.sh and statusline.ps1
   fs.copyFileSync(scriptSrc, scriptDest);
   try { fs.chmodSync(scriptDest, 0o755); } catch (e) {}
+  fs.copyFileSync(scriptPsSrc, scriptPsDest);
   console.log(`Copied statusline.sh -> ${scriptDest}`);
+  console.log(`Copied statusline.ps1 -> ${scriptPsDest}`);
 
   // Copy example config if no config exists
   if (!fs.existsSync(confDest)) {
@@ -36,14 +40,21 @@ function install() {
 
   const isWSL = process.platform === 'linux' && fs.existsSync('/proc/version') &&
     fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
-  const shellCmd = isWSL
-    ? `bash ${scriptDest}`
-    : `bash ~/.claude/statusline.sh`;
+  const isWindows = process.platform === 'win32';
+
+  let shellCmd;
+  if (isWSL) {
+    shellCmd = `bash ${scriptDest}`;
+  } else if (isWindows) {
+    shellCmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPsDest}"`;
+  } else {
+    shellCmd = `bash ~/.claude/statusline.sh`;
+  }
 
   settings.statusLine = {
     type: 'command',
     command: shellCmd,
-    refreshInterval: 1
+    refreshInterval: 3
   };
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
