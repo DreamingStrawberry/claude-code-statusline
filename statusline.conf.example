@@ -1,0 +1,24 @@
+# Claude Code Status Line Configuration
+# Copy to ~/.claude/statusline.conf and edit
+
+# Sections to show (true/false)
+SHOW_MODEL=true
+SHOW_PATH=true
+SHOW_GIT_BRANCH=true
+SHOW_CONTEXT=true
+SHOW_5H_LIMIT=true
+SHOW_7D_LIMIT=true
+SHOW_COST=true
+SHOW_DEVLAUNCHER=true
+
+# DevLauncher path (auto-detected if empty)
+# DEVLAUNCHER_PATH="/mnt/c/Users/YourName/DevLauncher.ps1"
+
+# Refresh interval in seconds (set in settings.json, shown here for reference)
+# REFRESH_INTERVAL=10
+
+# Bar style: "dots" (●○) or "blocks" (█░)
+BAR_STYLE=dots
+
+# Bar width (number of characters)
+BAR_WIDTH=6
