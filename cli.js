@@ -21,9 +21,12 @@ function install() {
   // Copy both statusline.sh and statusline.ps1
   fs.copyFileSync(scriptSrc, scriptDest);
   try { fs.chmodSync(scriptDest, 0o755); } catch (e) {}
-  fs.copyFileSync(scriptPsSrc, scriptPsDest);
+  // Write ps1 with UTF-8 BOM for PowerShell 5.1 compatibility
+  const ps1Content = fs.readFileSync(scriptPsSrc);
+  const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
+  fs.writeFileSync(scriptPsDest, Buffer.concat([bom, ps1Content]));
   console.log(`Copied statusline.sh -> ${scriptDest}`);
-  console.log(`Copied statusline.ps1 -> ${scriptPsDest}`);
+  console.log(`Copied statusline.ps1 -> ${scriptPsDest} (UTF-8 BOM)`);
 
   // Copy example config if no config exists
   if (!fs.existsSync(confDest)) {
@@ -38,24 +41,39 @@ function install() {
     try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); } catch (e) {}
   }
 
+  // Detect shell preference: --shell bash or --shell powershell
+  const shellArg = process.argv.indexOf('--shell') >= 0 ? process.argv[process.argv.indexOf('--shell') + 1] : null;
+
   const isWSL = process.platform === 'linux' && fs.existsSync('/proc/version') &&
     fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
   const isWindows = process.platform === 'win32';
+  const hasGitBash = isWindows && (process.env.SHELL || '').includes('bash');
 
   let shellCmd;
-  if (isWSL) {
-    shellCmd = `bash ${scriptDest}`;
+  if (shellArg === 'bash') {
+    shellCmd = `bash ~/.claude/statusline.sh`;
+  } else if (shellArg === 'powershell') {
+    shellCmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPsDest}"`;
+  } else if (isWSL || hasGitBash) {
+    shellCmd = `bash ${isWSL ? scriptDest : '~/.claude/statusline.sh'}`;
   } else if (isWindows) {
     shellCmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPsDest}"`;
   } else {
     shellCmd = `bash ~/.claude/statusline.sh`;
   }
 
-  settings.statusLine = {
-    type: 'command',
-    command: shellCmd,
-    refreshInterval: 3
-  };
+  // Don't overwrite if already configured with cc-statusbar
+  const existingCmd = settings.statusLine && settings.statusLine.command;
+  if (existingCmd && (existingCmd.includes('statusline.sh') || existingCmd.includes('statusline.ps1')) && !shellArg) {
+    console.log(`Keeping existing statusLine command: ${existingCmd}`);
+    console.log('Use --shell bash or --shell powershell to override.');
+  } else {
+    settings.statusLine = {
+      type: 'command',
+      command: shellCmd,
+      refreshInterval: 3
+    };
+  }
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
   console.log(`Updated ${settingsPath}`);

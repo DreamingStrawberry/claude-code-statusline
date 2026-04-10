@@ -56,9 +56,10 @@ $totalCost = $json.cost.total_cost_usd
 # ===================================================
 # ANSI colors
 # ===================================================
-$R = "`e[0m"; $B = "`e[1m"; $D = "`e[2m"; $BK = "`e[5m"
-$CY = "`e[36m"; $GN = "`e[32m"; $YL = "`e[33m"; $RD = "`e[31m"
-$GR = "`e[90m"; $MG = "`e[35m"; $BL = "`e[34m"; $OR = "`e[38;5;208m"
+$E = [char]27
+$R = "$E[0m"; $B = "$E[1m"; $D = "$E[2m"; $BK = "$E[5m"
+$CY = "$E[36m"; $GN = "$E[32m"; $YL = "$E[33m"; $RD = "$E[31m"
+$GR = "$E[90m"; $MG = "$E[35m"; $BL = "$E[34m"; $OR = "$E[38;5;208m"
 
 function Get-PctColor([int]$p) {
     if ($p -ge 80) { return $RD }

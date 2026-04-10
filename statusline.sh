@@ -202,9 +202,13 @@ fi
 [ "$SHOW_COST" = "true" ] && [ -n "$total_cost" ] && [ "$total_cost" != "null" ] && [ "$total_cost" != "0" ] && printf "%b${GR}\$%.2f${R}" "$sep" "$total_cost" 2>/dev/null && sep=" ${GR}|${R} "
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
-    [ "$SHOW_COMMANDS" = "true" ] && hint="${L_SET}: npx cc-statusbar"
-    [ "$SHOW_VERSION" = "true" ] && hint="${hint:+$hint }| v1.0.6"
-    printf "%b${D}${GR}%s${R}" "$sep" "$hint"
+    ver=""; cmd=""
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.7"
+    [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
+    printf "%b" "$sep"
+    [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"
+    [ -n "$ver" ] && [ -n "$cmd" ] && printf " ${GR}|${R} "
+    [ -n "$cmd" ] && printf "${D}${GR}%s${R}" "$cmd"
 fi
 printf "\n"
 
