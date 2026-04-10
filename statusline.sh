@@ -150,7 +150,8 @@ ctx_color=$(_c $ui); five_color=$(_c $fi); seven_color=$(_c $si)
 sep=""
 if [ "$SHOW_MODEL" = "true" ]; then
     printf "${CY}${B}%s${R}" "$model"
-    if [ "$exceeds_200k" = "true" ]; then
+    ctx_size_raw=$(_e "context_window_size")
+    if [ "$exceeds_200k" = "true" ] || [ "${ctx_size_raw:-0}" -gt 200000 ] 2>/dev/null; then
         printf " ${GN}thinking:on${R}"
     else
         printf " ${GR}thinking:off${R}"
@@ -203,7 +204,7 @@ fi
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
     ver=""; cmd=""
-    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.7"
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.11"
     [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
     printf "%b" "$sep"
     [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"
@@ -229,7 +230,9 @@ if [ ! -f "$LOCK" ]; then
             [ -f "$c" ] && DL="$c" && break
           done
           if [ -n "$DL" ]; then
-            ws=$(echo "$DL" | sed 's|^/mnt/\(.\)|\U\1:|; s|^/\(.\)/|\U\1:\\|; s|/|\\|g')
+            # /c/Users/... or /mnt/c/Users/... → C:\Users\...
+            tmp="${DL#/mnt}"; drive="${tmp:1:1}"; rest="${tmp:2}"
+            ws=$(printf '%s:%s' "${drive^}" "$rest" | tr '/' '\\')
             r=$(timeout 5 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ws" status 2>/dev/null | tr -d '\r')
             { echo "$(date +%s)"; echo "$r"; } > "$CACHE"
           fi
