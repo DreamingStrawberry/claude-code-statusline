@@ -241,10 +241,10 @@ while IFS= read -r line; do
     pt=$(echo "$line" | awk '{print $4}')
     st=$(echo "$line" | awk '{print $5}')
     case "$st" in
-        Running)  parts="${parts:+$parts }${GN}${B}${nm}${pt}${R}${GN}●${R}" ;;
-        Starting) parts="${parts:+$parts }${YL}${B}${nm}${pt}${spin}${R}" ;;
-        Error)    parts="${parts:+$parts }${BK}${RD}${B}${nm}${pt}✖${R}" ;;
-        *)        parts="${parts:+$parts }${GR}${nm}${pt}●${R}" ;;
+        Running)  parts="${parts:+$parts ${GR}|${R} }${GN}●${R} ${GN}${B}${nm}${pt}${R}" ;;
+        Starting) parts="${parts:+$parts ${GR}|${R} }${YL}${spin}${R} ${YL}${B}${nm}${pt}${R}" ;;
+        Error)    parts="${parts:+$parts ${GR}|${R} }${BK}${RD}✖${R} ${RD}${B}${nm}${pt}${R}" ;;
+        *)        parts="${parts:+$parts ${GR}|${R} }${GR}● ${nm}${pt}${R}" ;;
     esac
 done <<< "$raw"
 [ -n "$parts" ] && printf "${GR}${L_SVC}${R} $parts\n"
