@@ -166,21 +166,20 @@ fi
 if [ "$SHOW_CONTEXT" = "true" ]; then
     ctx_size=$(_e "context_window_size")
     ctx_used=$(( ctx_size * ui / 100 ))
-    ctx_left=$(( ctx_size - ctx_used ))
-    # Format as k or M
-    if [ "$ctx_left" -ge 1000000 ] 2>/dev/null; then
-        ctx_left_fmt="$(( ctx_left / 1000000 )).$(( ctx_left % 1000000 / 100000 ))M"
-    elif [ "$ctx_left" -ge 1000 ] 2>/dev/null; then
-        ctx_left_fmt="$(( ctx_left / 1000 ))k"
+    # Format used tokens as k or M
+    if [ "$ctx_used" -ge 1000000 ] 2>/dev/null; then
+        ctx_used_fmt="$(( ctx_used / 1000000 )).$(( ctx_used % 1000000 / 100000 ))M"
+    elif [ "$ctx_used" -ge 1000 ] 2>/dev/null; then
+        ctx_used_fmt="$(( ctx_used / 1000 ))k"
     else
-        ctx_left_fmt="$ctx_left"
+        ctx_used_fmt="$ctx_used"
     fi
     if [ "$ctx_size" -ge 1000000 ] 2>/dev/null; then
         ctx_total_fmt="$(( ctx_size / 1000000 )).$(( ctx_size % 1000000 / 100000 ))M"
     else
         ctx_total_fmt="$(( ctx_size / 1000 ))k"
     fi
-    printf "%b${L_CTX} ${ctx_color}%s${R} ${ctx_color}%d%%${R} ${GR}%s/%s${R}" "$sep" "$(_bar $ui)" "$ui" "$ctx_left_fmt" "$ctx_total_fmt"
+    printf "%b${L_CTX} ${ctx_color}%s${R} ${ctx_color}%d%%${R} ${GR}%s/%s${R}" "$sep" "$(_bar $ui)" "$ui" "$ctx_used_fmt" "$ctx_total_fmt"
     sep=" ${GR}|${R} "
 fi
 if [ "$SHOW_5H_LIMIT" = "true" ]; then
@@ -216,49 +215,51 @@ fi
 # DevLauncher (same line, fully async, cache only)
 # ===================================================
 CACHE="/tmp/.devlauncher-status-cache"
-LOCK="/tmp/.devlauncher-refresh.lock"
 
-# Background refresh (never blocks main output)
-if [ ! -f "$LOCK" ]; then
-    now=$(date +%s)
-    need_refresh=true
-    [ -f "$CACHE" ] && cached_at=$(head -1 "$CACHE") && [ $(( now - cached_at )) -lt 10 ] && need_refresh=false
-    if [ "$need_refresh" = "true" ]; then
-        touch "$LOCK"
-        ( DL=""
-          for c in "/mnt/c/Users/$USER/DevLauncher.ps1" "/c/Users/$USER/DevLauncher.ps1" "$HOME/DevLauncher.ps1" "/mnt/c/Users/$USERNAME/DevLauncher.ps1" "/c/Users/$USERNAME/DevLauncher.ps1"; do
-            [ -f "$c" ] && DL="$c" && break
-          done
-          if [ -n "$DL" ]; then
-            # /c/Users/... or /mnt/c/Users/... → C:\Users\...
-            tmp="${DL#/mnt}"; drive="${tmp:1:1}"; rest="${tmp:2}"
-            ws=$(printf '%s:%s' "${drive^}" "$rest" | tr '/' '\\')
-            r=$(timeout 5 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ws" status 2>/dev/null | tr -d '\r')
-            { echo "$(date +%s)"; echo "$r"; } > "$CACHE"
-          fi
-          rm -f "$LOCK"
-        ) &
-        disown
+# Find DevLauncher
+DL=""
+for c in "/mnt/c/Users/$USER/DevLauncher.ps1" "/c/Users/$USER/DevLauncher.ps1" "$HOME/DevLauncher.ps1" "/mnt/c/Users/$USERNAME/DevLauncher.ps1" "/c/Users/$USERNAME/DevLauncher.ps1"; do
+    [ -f "$c" ] && DL="$c" && break
+done
+[ -z "$DL" ] && exit 0
+
+# Foreground refresh with cache (TTL 5s)
+now=$(date +%s)
+need_refresh=true
+[ -f "$CACHE" ] && cached_at=$(head -1 "$CACHE" 2>/dev/null) && [ $(( now - ${cached_at:-0} )) -lt 5 ] 2>/dev/null && need_refresh=false
+
+if [ "$need_refresh" = "true" ]; then
+    tmp="${DL#/mnt}"; drive="${tmp:1:1}"; rest="${tmp:2}"
+    ws=$(printf '%s:%s' "${drive^}" "$rest" | tr '/' '\\' 2>/dev/null)
+    r=$(timeout 5 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ws" status 2>/dev/null | tr -d '\r')
+    if [ -n "$r" ]; then
+        { echo "$now"; echo "$r"; } > "$CACHE"
     fi
 fi
 
-# Read from cache (instant)
+# Read from cache
 raw=""
 [ -f "$CACHE" ] && raw=$(tail -n +2 "$CACHE")
 
-# Render services on same line
+# Render services — extract status by keyword match (emoji-safe)
 parts=""
 spin=$(_spin)
 while IFS= read -r line; do
     [ -z "$line" ] && continue
-    set -- $line
-    nm=$2; pt=$4; st=$5
-    case "$st" in
-        Running)  parts="${parts:+$parts ${GR}|${R} }${GN}●${R} ${GN}${B}${nm}${pt}${R}" ;;
-        Starting) parts="${parts:+$parts ${GR}|${R} }${YL}${spin}${R} ${YL}${B}${nm}${pt}${R}" ;;
-        Error)    parts="${parts:+$parts ${GR}|${R} }${BK}${RD}✖${R} ${RD}${B}${nm}${pt}${R}" ;;
-        *)        parts="${parts:+$parts ${GR}|${R} }${GR}● ${nm}${pt}${R}" ;;
-    esac
+    # Extract name:port and status using keyword grep (handles unicode emoji prefix)
+    if echo "$line" | grep -q "Running"; then
+        np=$(echo "$line" | grep -oP '\S+\s+:\d+' | head -1 | tr -s ' ')
+        parts="${parts:+$parts ${GR}|${R} }${GN}●${R} ${GN}${B}${np}${R}"
+    elif echo "$line" | grep -q "Starting"; then
+        np=$(echo "$line" | grep -oP '\S+\s+:\d+' | head -1 | tr -s ' ')
+        parts="${parts:+$parts ${GR}|${R} }${YL}${spin}${R} ${YL}${B}${np}${R}"
+    elif echo "$line" | grep -q "Error"; then
+        np=$(echo "$line" | grep -oP '\S+\s+:\d+' | head -1 | tr -s ' ')
+        parts="${parts:+$parts ${GR}|${R} }${BK}${RD}✖${R} ${RD}${B}${np}${R}"
+    elif echo "$line" | grep -q "Stopped"; then
+        np=$(echo "$line" | grep -oP '\S+\s+:\d+' | head -1 | tr -s ' ')
+        parts="${parts:+$parts ${GR}|${R} }${GR}● ${np}${R}"
+    fi
 done <<< "$raw"
 if [ -n "$parts" ]; then
     printf "\n${GR}${L_SVC}${R} $parts"
