@@ -45,6 +45,7 @@ _ea() { echo "$input" | grep -o "$1[^}]*\"$2\"[[:space:]]*:[[:space:]]*[^,}]*" |
 # ===================================================
 model=$(_es "display_name")
 cwd=$(_es "current_dir"); [ -z "$cwd" ] && cwd=$(_es "cwd")
+exceeds_200k=$(_e "exceeds_200k_tokens")
 used_pct=$(_e "used_percentage")
 five_h_pct=$(_ea "five_hour" "used_percentage")
 five_h_reset=$(_ea "five_hour" "resets_at")
@@ -147,7 +148,15 @@ esac
 ctx_color=$(_c $ui); five_color=$(_c $fi); seven_color=$(_c $si)
 
 sep=""
-[ "$SHOW_MODEL" = "true" ] && printf "${CY}${B}%s${R}" "$model" && sep=" ${GR}|${R} "
+if [ "$SHOW_MODEL" = "true" ]; then
+    printf "${CY}${B}%s${R}" "$model"
+    if [ "$exceeds_200k" = "true" ]; then
+        printf " ${GN}thinking:on${R}"
+    else
+        printf " ${GR}thinking:off${R}"
+    fi
+    sep=" ${GR}|${R} "
+fi
 if [ "$SHOW_PATH" = "true" ]; then
     printf "%b${BL}%s${R}" "$sep" "$sp"
     [ "$SHOW_GIT_BRANCH" = "true" ] && [ -n "$gb" ] && printf "${GR}@${R}${MG}%s${R}" "$gb"
