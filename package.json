@@ -1,9 +1,9 @@
 {
   "name": "cc-statusbar",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Status line for Claude Code showing rate limits (5h/7d), context usage, cost, and DevLauncher service status",
   "bin": {
-    "cc-status-bar": "./entry.js"
+    "cc-statusbar": "./entry.js"
   },
   "keywords": [
     "claude-code",
