@@ -210,10 +210,9 @@ if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     [ -n "$ver" ] && [ -n "$cmd" ] && printf " ${GR}|${R} "
     [ -n "$cmd" ] && printf "${D}${GR}%s${R}" "$cmd"
 fi
-printf "\n"
 
 # ===================================================
-# Line 2: DevLauncher (fully async, cache only)
+# DevLauncher (same line, fully async, cache only)
 # ===================================================
 CACHE="/tmp/.devlauncher-status-cache"
 LOCK="/tmp/.devlauncher-refresh.lock"
@@ -225,9 +224,12 @@ if [ ! -f "$LOCK" ]; then
     [ -f "$CACHE" ] && cached_at=$(head -1 "$CACHE") && [ $(( now - cached_at )) -lt 10 ] && need_refresh=false
     if [ "$need_refresh" = "true" ]; then
         touch "$LOCK"
-        ( DL=""; for c in "/mnt/c/Users/$USER/DevLauncher.ps1" "$HOME/DevLauncher.ps1"; do [ -f "$c" ] && DL="$c" && break; done
+        ( DL=""
+          for c in "/mnt/c/Users/$USER/DevLauncher.ps1" "/c/Users/$USER/DevLauncher.ps1" "$HOME/DevLauncher.ps1" "/mnt/c/Users/$USERNAME/DevLauncher.ps1" "/c/Users/$USERNAME/DevLauncher.ps1"; do
+            [ -f "$c" ] && DL="$c" && break
+          done
           if [ -n "$DL" ]; then
-            ws=$(echo "$DL" | sed 's|^/mnt/\(.\)|\U\1:|; s|/|\\|g')
+            ws=$(echo "$DL" | sed 's|^/mnt/\(.\)|\U\1:|; s|^/\(.\)/|\U\1:\\|; s|/|\\|g')
             r=$(timeout 5 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ws" status 2>/dev/null | tr -d '\r')
             { echo "$(date +%s)"; echo "$r"; } > "$CACHE"
           fi
@@ -241,7 +243,7 @@ fi
 raw=""
 [ -f "$CACHE" ] && raw=$(tail -n +2 "$CACHE")
 
-# Render
+# Render services on same line
 parts=""
 spin=$(_spin)
 while IFS= read -r line; do
@@ -256,4 +258,7 @@ while IFS= read -r line; do
         *)        parts="${parts:+$parts ${GR}|${R} }${GR}● ${nm}${pt}${R}" ;;
     esac
 done <<< "$raw"
-[ -n "$parts" ] && printf "${GR}${L_SVC}${R} $parts\n"
+if [ -n "$parts" ]; then
+    printf " ${GR}|${R} ${GR}${L_SVC}${R} $parts"
+fi
+printf "\n"
