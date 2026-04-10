@@ -248,9 +248,8 @@ parts=""
 spin=$(_spin)
 while IFS= read -r line; do
     [ -z "$line" ] && continue
-    nm=$(echo "$line" | awk '{print $2}')
-    pt=$(echo "$line" | awk '{print $4}')
-    st=$(echo "$line" | awk '{print $5}')
+    set -- $line
+    nm=$2; pt=$4; st=$5
     case "$st" in
         Running)  parts="${parts:+$parts ${GR}|${R} }${GN}●${R} ${GN}${B}${nm}${pt}${R}" ;;
         Starting) parts="${parts:+$parts ${GR}|${R} }${YL}${spin}${R} ${YL}${B}${nm}${pt}${R}" ;;
@@ -258,5 +257,6 @@ while IFS= read -r line; do
         *)        parts="${parts:+$parts ${GR}|${R} }${GR}● ${nm}${pt}${R}" ;;
     esac
 done <<< "$raw"
-printf "\n"
-[ -n "$parts" ] && printf "${GR}${L_SVC}${R} $parts\n"
+if [ -n "$parts" ]; then
+    printf "\n${GR}${L_SVC}${R} $parts"
+fi
