@@ -258,7 +258,5 @@ while IFS= read -r line; do
         *)        parts="${parts:+$parts ${GR}|${R} }${GR}● ${nm}${pt}${R}" ;;
     esac
 done <<< "$raw"
-if [ -n "$parts" ]; then
-    printf " ${GR}|${R} ${GR}${L_SVC}${R} $parts"
-fi
 printf "\n"
+[ -n "$parts" ] && printf "${GR}${L_SVC}${R} $parts\n"
