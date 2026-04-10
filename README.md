@@ -1,37 +1,39 @@
-# Claude Code Status Line
+# cc-status-bar
 
-A real-time status bar for [Claude Code](https://claude.ai/claude-code) with rate limit tracking, context usage, and dev server monitoring.
+Real-time status bar for [Claude Code](https://claude.ai/claude-code) showing rate limits, context usage, and dev server monitoring.
+
+[![npm](https://img.shields.io/npm/v/cc-status-bar)](https://www.npmjs.com/package/cc-status-bar)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ```
-Opus 4.6 (1M context) | myproject@main | 21% ●○○○○○ | 5h ●●○○○○ 45%(1h42m) | 7d ○○○○○○ 4%(166h42m) | $24.14
-svc MW-Back:8080● MW-React:5190● CRM-Back:8085○ MWPF:8090⠙
+Opus 4.6 (1M context) | myproject@main | ctx ▓▓░░░░░░░░ 21% 790k/1.0M | 5h ▓▓▓▓░░░░░░ 45% 1h 3m | 7d ░░░░░░░░░░ 4% 6d 22h 1m | settings: npx cc-status-bar
 ```
 
 ## Install
 
 ```bash
-npx claude-code-statusline install
+npx cc-status-bar install
 ```
 
-Or manually:
+Restart Claude Code. Done.
+
+## Configure
+
+Open the interactive settings TUI:
 
 ```bash
-git clone https://github.com/DreamingStrawberry/claude-code-statusline.git
-cp claude-code-statusline/statusline.sh ~/.claude/statusline.sh
+npx cc-status-bar
 ```
 
-Add to `~/.claude/settings.json`:
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "bash ~/.claude/statusline.sh",
-    "refreshInterval": 1
-  }
-}
-```
+Keyboard navigation:
+- `↑↓` Navigate
+- `Space/Enter` Toggle on/off
+- `←→` Adjust values
+- `Esc` Exit
 
-Restart Claude Code to apply.
+All changes save instantly and reflect in the status bar within 1 second.
+
+AI assistants (Claude Code) can also edit `~/.claude/statusline.conf` directly.
 
 ## What it shows
 
@@ -39,24 +41,45 @@ Restart Claude Code to apply.
 |---------|---------|-------------|
 | Model | `Opus 4.6 (1M context)` | Current model and context window |
 | Path | `myproject@main` | Directory + git branch |
-| Context | `21% ●○○○○○` | Context window usage |
-| 5h limit | `●●○○○○ 45%(1h42m)` | 5-hour rate limit + reset timer |
-| 7d limit | `○○○○○○ 4%(166h42m)` | 7-day rate limit + reset timer |
-| Cost | `$24.14` | Session cost |
-| svc | `MW-Back:8080●` | Dev server status (optional) |
+| Context | `ctx ▓▓░░░░░░░░ 21% 790k/1.0M` | Context window usage + remaining tokens |
+| 5h limit | `5h ▓▓▓▓░░░░░░ 45% 1h 3m` | 5-hour rate limit + time until reset |
+| 7d limit | `7d ░░░░░░░░░░ 4% 6d 22h 1m` | 7-day rate limit + time until reset |
+## Bar styles
 
-## Service states
+6 built-in styles, configurable via TUI:
 
-| State | Display | Description |
-|-------|---------|-------------|
-| Running | `MW-Back:8080●` | Green name, green dot |
-| Starting | `MW-Back:8080⠙` | Yellow, animated spinner (rotates every 1s) |
-| Error | `MW-Back:8080✖` | Red, blinking |
-| Stopped | `mw-back:8080○` | Gray, hollow dot |
+| Style | Example |
+|-------|---------|
+| blocks | `▓▓▓▓░░░░░░` |
+| dots | `●●●●○○○○○○` |
+| squares | `■■■■□□□□□□` |
+| lines | `━━━━──────` |
+| triangles | `▰▰▰▰▱▱▱▱▱▱` |
+| ascii | `####......` |
 
-## Configuration
+## Multi-language
 
-Edit `~/.claude/statusline.conf`:
+10 languages supported. Change in TUI — all labels update instantly.
+
+English, 한국어, 日本語, 中文, Español, Français, Deutsch, Português, Русский, Tiếng Việt
+
+```
+# English
+ctx ▓▓░░░░░░░░ 21% | 5h ▓▓▓▓░░░░░░ 45% | 7d ░░░░░░░░░░ 4%
+
+# 한국어
+컨텍스트 ▓▓░░░░░░░░ 21% | 5시간 ▓▓▓▓░░░░░░ 45% | 7일 ░░░░░░░░░░ 4%
+```
+
+## Color coding
+
+- Green: < 50%
+- Yellow: 50-80%
+- Red: > 80%
+
+## Configuration file
+
+`~/.claude/statusline.conf` (auto-created on install):
 
 ```bash
 # Sections (true/false)
@@ -66,45 +89,31 @@ SHOW_GIT_BRANCH=true
 SHOW_CONTEXT=true
 SHOW_5H_LIMIT=true
 SHOW_7D_LIMIT=true
-SHOW_COST=true
-SHOW_DEVLAUNCHER=true
+SHOW_COST=false
+SHOW_COMMANDS=true
+LANGUAGE=en
 
-# DevLauncher path (auto-detected if empty)
-# DEVLAUNCHER_PATH="/mnt/c/Users/YourName/DevLauncher.ps1"
-
-# Bar style: "dots" or "blocks"
-BAR_STYLE=dots
-
-# Bar width
-BAR_WIDTH=6
+# Bar appearance
+BAR_STYLE=blocks
+BAR_WIDTH=10
+BAR_FILL="▓"
+BAR_EMPTY="░"
 ```
-
-## Color coding
-
-- Green: < 50%
-- Yellow: 50-80%
-- Red: > 80%
-
-## Dev Server Launcher integration
-
-Automatically detects [Dev Server Launcher](https://github.com/DreamingStrawberry/dev-server-launcher) if installed. Shows live service statuses with animated spinner for starting services and blinking icon for errors.
-
-DevLauncher status is cached for 3 seconds to keep the 1s refresh lightweight.
 
 ## Commands
 
 ```bash
-npx claude-code-statusline install     # Install
-npx claude-code-statusline uninstall   # Remove
-npx claude-code-statusline update      # Update script
-npx claude-code-statusline help        # Help
+npx cc-status-bar            # Open settings TUI
+npx cc-status-bar install    # Install to Claude Code
+npx cc-status-bar uninstall  # Remove
+npx cc-status-bar help       # Help
 ```
 
 ## Requirements
 
 - Claude Code CLI
 - bash (WSL or native)
-- No external dependencies
+- No external dependencies (no jq)
 
 ## License
 

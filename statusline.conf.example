@@ -8,17 +8,23 @@ SHOW_GIT_BRANCH=true
 SHOW_CONTEXT=true
 SHOW_5H_LIMIT=true
 SHOW_7D_LIMIT=true
-SHOW_COST=true
-SHOW_DEVLAUNCHER=true
-
-# DevLauncher path (auto-detected if empty)
-# DEVLAUNCHER_PATH="/mnt/c/Users/YourName/DevLauncher.ps1"
+SHOW_COST=false
+SHOW_COMMANDS=true
 
 # Refresh interval in seconds (set in settings.json, shown here for reference)
 # REFRESH_INTERVAL=10
 
 # Bar style: "dots" (●○) or "blocks" (█░)
-BAR_STYLE=dots
+BAR_STYLE=blocks
 
 # Bar width (number of characters)
-BAR_WIDTH=6
+BAR_WIDTH=10
+
+# Bar characters (customize fill and empty characters)
+BAR_FILL="▓"
+BAR_EMPTY="░"
+# Other options: BAR_FILL="█" BAR_EMPTY="░"
+#                BAR_FILL="■" BAR_EMPTY="□"
+#                BAR_FILL="=" BAR_EMPTY="-"
+#                BAR_FILL="▰" BAR_EMPTY="▱"
+#                BAR_FILL="#" BAR_EMPTY="."

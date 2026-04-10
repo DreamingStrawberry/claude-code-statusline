@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Claude Code Status Line
-# https://github.com/DreamingStrawberry/claude-code-statusline
+# cc-status-bar - Claude Code Status Bar
+# https://github.com/DreamingStrawberry/cc-status-bar
 #
-# Line 1: Model | Path@Branch | Context% | 5h limit | 7d limit | Cost
+# Line 1: Model | Path@Branch | Context | 5h limit | 7d limit | Cost | /commands
 # Line 2: DevLauncher services (auto-detected, optional)
 
 input=$(cat)
@@ -16,14 +16,22 @@ SHOW_GIT_BRANCH=true
 SHOW_CONTEXT=true
 SHOW_5H_LIMIT=true
 SHOW_7D_LIMIT=true
-SHOW_COST=true
-SHOW_DEVLAUNCHER=true
-DEVLAUNCHER_PATH=""
-BAR_STYLE=dots
-BAR_WIDTH=6
+SHOW_COST=false
+SHOW_COMMANDS=true
+SHOW_COMMANDS=true
+LANGUAGE=en
+BAR_STYLE=blocks
+BAR_WIDTH=10
+BAR_FILL="▓"
+BAR_EMPTY="░"
 
+# Load config: try WSL home first, then Windows user profile
 CONF="$HOME/.claude/statusline.conf"
 [ -f "$CONF" ] && source "$CONF"
+# Windows side (when TUI saves to C:\Users\X\.claude\)
+for wconf in /mnt/c/Users/*/.claude/statusline.conf; do
+    [ -f "$wconf" ] && source "$wconf" && break
+done
 
 # ===================================================
 # JSON parser (no jq)
@@ -50,31 +58,69 @@ fi=$(printf "%.0f" "$five_h_pct" 2>/dev/null || echo 0)
 si=$(printf "%.0f" "$seven_d_pct" 2>/dev/null || echo 0)
 
 # ===================================================
-# Colors & ANSI
+# Colors
 # ===================================================
-R='\033[0m'; B='\033[1m'; BK='\033[5m'
+R='\033[0m'; B='\033[1m'; BK='\033[5m'; D='\033[2m'
 CY='\033[36m'; GN='\033[32m'; YL='\033[33m'; RD='\033[31m'
 GR='\033[90m'; MG='\033[35m'; BL='\033[34m'; OR='\033[38;5;208m'
 
 _c() { local p=$1; [ "$p" -ge 80 ] 2>/dev/null && echo "$RD" && return; [ "$p" -ge 50 ] 2>/dev/null && echo "$YL" && return; echo "$GN"; }
 
+# ===================================================
+# Block bar with 1/8 precision
+# ===================================================
 _bar() {
-    local p=$1 w=${2:-$BAR_WIDTH} f="" e="" fc="" ec=""
-    local n=$(( p * w / 100 )); [ "$n" -gt "$w" ] && n=$w; local m=$(( w - n ))
-    if [ "$BAR_STYLE" = "blocks" ]; then fc="█"; ec="░"; else fc="●"; ec="○"; fi
-    for ((i=0;i<n;i++)); do f+="$fc"; done; for ((i=0;i<m;i++)); do e+="$ec"; done
-    echo "$f$e"
+    local pct=$1 w=${2:-$BAR_WIDTH}
+
+    local fc="" ec=""
+    case "$BAR_STYLE" in
+        dots)      fc="●"; ec="○" ;;
+        squares)   fc="■"; ec="□" ;;
+        lines)     fc="━"; ec="─" ;;
+        triangles) fc="▰"; ec="▱" ;;
+        ascii)     fc="#"; ec="." ;;
+        *)         fc="$BAR_FILL"; ec="$BAR_EMPTY" ;;
+    esac
+
+    local n=$(( pct * w / 100 ))
+    [ "$n" -gt "$w" ] && n=$w
+    local m=$(( w - n ))
+    local bar=""
+    for ((i=0;i<n;i++)); do bar+="$fc"; done
+    for ((i=0;i<m;i++)); do bar+="$ec"; done
+    echo "$bar"
 }
 
-_reset() {
-    local ts=$1; [ -z "$ts" ] || [ "$ts" -le 0 ] 2>/dev/null && return
-    local d=$(( ts - $(date +%s) ))
-    [ "$d" -le 0 ] && echo "now" && return
-    [ "$d" -lt 3600 ] && echo "$(( d/60 ))m" && return
-    echo "$(( d/3600 ))h$(( d%3600/60 ))m"
+_fmt_time() {
+    local s=$1 fmt=$2
+    [ "$s" -le 0 ] 2>/dev/null && echo "now" && return
+    if [ "$fmt" = "hm" ]; then
+        echo "$(( s/3600 ))h $(( s%3600/60 ))m"
+    else
+        echo "$(( s/86400 ))d $(( s%86400/3600 ))h $(( s%3600/60 ))m"
+    fi
 }
 
-# Spinner: 8 frames, rotates every 1s
+# Estimate remaining time: how long until limit is exhausted at current rate
+# Uses reset timestamp to derive elapsed time within the window
+_remain() {
+    local reset_ts=$1 pct=$2 fmt=$3
+    [ -z "$pct" ] || [ "$pct" -le 0 ] 2>/dev/null && return
+    [ -z "$reset_ts" ] || [ "$reset_ts" -le 0 ] 2>/dev/null && return
+    local now=$(date +%s)
+    local remain_pct=$(( 100 - pct ))
+    # elapsed within window = window_size - time_until_reset
+    # For 5h window: window = 18000s, for 7d: 604800s
+    # But simpler: remaining = elapsed * remain% / used%
+    # elapsed from reset: we don't know window start, use session duration as fallback
+    local total_dur
+    total_dur=$(_e "total_duration_ms")
+    [ -z "$total_dur" ] || [ "$total_dur" -le 0 ] 2>/dev/null && return
+    local elapsed=$(( total_dur / 1000 ))
+    local remain_sec=$(( elapsed * remain_pct / pct ))
+    _fmt_time "$remain_sec" "$fmt"
+}
+
 _spin() {
     local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠇")
     echo "${frames[$(( $(date +%s) % 8 ))]}"
@@ -87,6 +133,19 @@ sp=$(echo "$cwd" | sed 's|\\|/|g' | awk -F/ '{if(NF>2) print $(NF-1)"/"$NF; else
 # ===================================================
 # Line 1
 # ===================================================
+# Language labels
+case "$LANGUAGE" in
+    ko) L_CTX="컨텍스트"; L_5H="5시간"; L_7D="7일"; L_SVC="서비스"; L_SET="설정" ;;
+    ja) L_CTX="ctx"; L_5H="5h"; L_7D="7d"; L_SVC="svc"; L_SET="設定" ;;
+    zh) L_CTX="上下文"; L_5H="5小时"; L_7D="7天"; L_SVC="服务"; L_SET="设置" ;;
+    fr) L_CTX="ctx"; L_5H="5h"; L_7D="7j"; L_SVC="svc"; L_SET="config" ;;
+    de) L_CTX="ctx"; L_5H="5h"; L_7D="7T"; L_SVC="svc"; L_SET="Einst." ;;
+    ru) L_CTX="ctx"; L_5H="5ч"; L_7D="7д"; L_SVC="svc"; L_SET="настр." ;;
+    *)  L_CTX="ctx"; L_5H="5h"; L_7D="7d"; L_SVC="svc"; L_SET="settings" ;;
+esac
+
+ctx_color=$(_c $ui); five_color=$(_c $fi); seven_color=$(_c $si)
+
 sep=""
 [ "$SHOW_MODEL" = "true" ] && printf "${CY}${B}%s${R}" "$model" && sep=" ${GR}|${R} "
 if [ "$SHOW_PATH" = "true" ]; then
@@ -94,51 +153,71 @@ if [ "$SHOW_PATH" = "true" ]; then
     [ "$SHOW_GIT_BRANCH" = "true" ] && [ -n "$gb" ] && printf "${GR}@${R}${MG}%s${R}" "$gb"
     sep=" ${GR}|${R} "
 fi
-[ "$SHOW_CONTEXT" = "true" ] && printf "%b$(_c $ui)%d%% %s${R}" "$sep" "$ui" "$(_bar $ui)" && sep=" ${GR}|${R} "
+if [ "$SHOW_CONTEXT" = "true" ]; then
+    ctx_size=$(_e "context_window_size")
+    ctx_used=$(( ctx_size * ui / 100 ))
+    ctx_left=$(( ctx_size - ctx_used ))
+    # Format as k or M
+    if [ "$ctx_left" -ge 1000000 ] 2>/dev/null; then
+        ctx_left_fmt="$(( ctx_left / 1000000 )).$(( ctx_left % 1000000 / 100000 ))M"
+    elif [ "$ctx_left" -ge 1000 ] 2>/dev/null; then
+        ctx_left_fmt="$(( ctx_left / 1000 ))k"
+    else
+        ctx_left_fmt="$ctx_left"
+    fi
+    if [ "$ctx_size" -ge 1000000 ] 2>/dev/null; then
+        ctx_total_fmt="$(( ctx_size / 1000000 )).$(( ctx_size % 1000000 / 100000 ))M"
+    else
+        ctx_total_fmt="$(( ctx_size / 1000 ))k"
+    fi
+    printf "%b${L_CTX} ${ctx_color}%s${R} ${ctx_color}%d%%${R} ${GR}%s/%s${R}" "$sep" "$(_bar $ui)" "$ui" "$ctx_left_fmt" "$ctx_total_fmt"
+    sep=" ${GR}|${R} "
+fi
 if [ "$SHOW_5H_LIMIT" = "true" ]; then
-    printf "%b5h $(_c $fi)%s %d%%${R}" "$sep" "$(_bar $fi)" "$fi"
-    r=$(_reset "$five_h_reset"); [ -n "$r" ] && printf "${GR}(%s)${R}" "$r"
+    printf "%b${L_5H} ${five_color}%s${R} ${five_color}%d%%${R}" "$sep" "$(_bar $fi)" "$fi"
+    if [ -n "$five_h_reset" ] && [ "$five_h_reset" -gt 0 ] 2>/dev/null; then
+        d5=$(( five_h_reset - $(date +%s) ))
+        [ "$d5" -gt 0 ] && printf " ${GR}%s${R}" "$(_fmt_time $d5 hm)" || printf " ${GR}now${R}"
+    fi
     sep=" ${GR}|${R} "
 fi
 if [ "$SHOW_7D_LIMIT" = "true" ]; then
-    printf "%b7d $(_c $si)%s %d%%${R}" "$sep" "$(_bar $si)" "$si"
-    r=$(_reset "$seven_d_reset"); [ -n "$r" ] && printf "${GR}(%s)${R}" "$r"
+    printf "%b${L_7D} ${seven_color}%s${R} ${seven_color}%d%%${R}" "$sep" "$(_bar $si)" "$si"
+    if [ -n "$seven_d_reset" ] && [ "$seven_d_reset" -gt 0 ] 2>/dev/null; then
+        d7=$(( seven_d_reset - $(date +%s) ))
+        [ "$d7" -gt 0 ] && printf " ${GR}%s${R}" "$(_fmt_time $d7 dhm)" || printf " ${GR}now${R}"
+    fi
     sep=" ${GR}|${R} "
 fi
-[ "$SHOW_COST" = "true" ] && [ -n "$total_cost" ] && [ "$total_cost" != "null" ] && printf "%b${GR}\$%.2f${R}" "$sep" "$total_cost" 2>/dev/null
+# Cost: only shown for API key users (not Claude Max subscription)
+[ "$SHOW_COST" = "true" ] && [ -n "$total_cost" ] && [ "$total_cost" != "null" ] && [ "$total_cost" != "0" ] && printf "%b${GR}\$%.2f${R}" "$sep" "$total_cost" 2>/dev/null && sep=" ${GR}|${R} "
+[ "$SHOW_COMMANDS" = "true" ] && printf "%b${D}${GR}${L_SET}: npx cc-status-bar${R}" "$sep"
 printf "\n"
 
 # ===================================================
 # Line 2: DevLauncher (cached 3s, spinner every 1s)
 # ===================================================
-[ "$SHOW_DEVLAUNCHER" != "true" ] && exit 0
-
-# Find DevLauncher
-DL="$DEVLAUNCHER_PATH"
-if [ -z "$DL" ] || [ ! -f "$DL" ]; then
-    DL=""
-    for c in "/mnt/c/Users/$USER/DevLauncher.ps1" /mnt/c/Users/*/DevLauncher.ps1 "$HOME/DevLauncher.ps1"; do
-        for f in $c; do [ -f "$f" ] && DL="$f" && break 2; done
-    done
-fi
+# Auto-detect DevLauncher (no config needed - shows if installed, hides if not)
+DL=""
+for c in "/mnt/c/Users/$USER/DevLauncher.ps1" /mnt/c/Users/*/DevLauncher.ps1 "$HOME/DevLauncher.ps1"; do
+    for f in $c; do [ -f "$f" ] && DL="$f" && break 2; done
+done
 [ -z "$DL" ] && [ -n "$USERPROFILE" ] && {
     wp=$(echo "$USERPROFILE" | sed 's|\\|/|g; s|^\([A-Z]\):|/mnt/\L\1|')
     [ -f "$wp/DevLauncher.ps1" ] && DL="$wp/DevLauncher.ps1"
 }
 [ -z "$DL" ] && exit 0
 
-# Cache: call powershell every 3s, reuse cache otherwise
+# Cache
 CACHE="/tmp/.devlauncher-status-cache"
-CACHE_AGE=3
 now=$(date +%s)
 refresh=false
 if [ -f "$CACHE" ]; then
     cached_at=$(head -1 "$CACHE")
-    [ $(( now - cached_at )) -ge $CACHE_AGE ] && refresh=true
+    [ $(( now - cached_at )) -ge 3 ] && refresh=true
 else
     refresh=true
 fi
-
 if [ "$refresh" = "true" ]; then
     ws=$(echo "$DL" | sed 's|^/mnt/\(.\)|\U\1:|; s|/|\\|g')
     raw=$(powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ws" status 2>/dev/null | tr -d '\r')
@@ -147,7 +226,7 @@ else
     raw=$(tail -n +2 "$CACHE")
 fi
 
-# Render services
+# Render
 parts=""
 spin=$(_spin)
 while IFS= read -r line; do
@@ -162,4 +241,4 @@ while IFS= read -r line; do
         *)        parts="${parts:+$parts }${GR}${nm}${pt}●${R}" ;;
     esac
 done <<< "$raw"
-[ -n "$parts" ] && printf "${GR}svc${R} $parts\n"
+[ -n "$parts" ] && printf "${GR}${L_SVC}${R} $parts\n"

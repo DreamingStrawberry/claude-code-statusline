@@ -27,6 +27,7 @@ function install() {
     console.log(`Copied statusline.conf.example -> ${confDest}`);
   }
 
+
   // Update settings.json
   let settings = {};
   if (fs.existsSync(settingsPath)) {
