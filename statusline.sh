@@ -18,7 +18,7 @@ SHOW_5H_LIMIT=true
 SHOW_7D_LIMIT=true
 SHOW_COST=false
 SHOW_COMMANDS=true
-SHOW_COMMANDS=true
+SHOW_VERSION=true
 LANGUAGE=en
 BAR_STYLE=blocks
 BAR_WIDTH=10
@@ -200,7 +200,12 @@ if [ "$SHOW_7D_LIMIT" = "true" ]; then
 fi
 # Cost: only shown for API key users (not Claude Max subscription)
 [ "$SHOW_COST" = "true" ] && [ -n "$total_cost" ] && [ "$total_cost" != "null" ] && [ "$total_cost" != "0" ] && printf "%b${GR}\$%.2f${R}" "$sep" "$total_cost" 2>/dev/null && sep=" ${GR}|${R} "
-[ "$SHOW_COMMANDS" = "true" ] && printf "%b${D}${GR}${L_SET}: npx cc-statusbar${R}" "$sep"
+if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
+    hint=""
+    [ "$SHOW_COMMANDS" = "true" ] && hint="${L_SET}: npx cc-statusbar"
+    [ "$SHOW_VERSION" = "true" ] && hint="${hint:+$hint }| v1.0.6"
+    printf "%b${D}${GR}%s${R}" "$sep" "$hint"
+fi
 printf "\n"
 
 # ===================================================
