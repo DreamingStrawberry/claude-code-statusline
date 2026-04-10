@@ -6,7 +6,7 @@ Real-time status bar for [Claude Code](https://claude.ai/claude-code) showing ra
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ```
-Opus 4.6 (1M context) | myproject@main | ctx ▓▓░░░░░░░░ 21% 790k/1.0M | 5h ▓▓▓▓░░░░░░ 45% 1h 3m | 7d ░░░░░░░░░░ 4% 6d 22h 1m | settings: npx cc-status-bar
+Opus 4.6 | path@main | ctx ▓▓░░░░ 21% | 5h ▓▓▓░░░ 45% | 7d ░░░░░░ 4%
 ```
 
 ## Install
