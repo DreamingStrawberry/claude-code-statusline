@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# cc-status-bar - Claude Code Status Bar
-# https://github.com/DreamingStrawberry/cc-status-bar
+# cc-statusbar - Claude Code Status Bar
+# https://github.com/DreamingStrawberry/cc-statusbar
 #
 # Line 1: Model | Path@Branch | Context | 5h limit | 7d limit | Cost | /commands
 # Line 2: DevLauncher services (auto-detected, optional)
@@ -25,13 +25,13 @@ BAR_WIDTH=10
 BAR_FILL="▓"
 BAR_EMPTY="░"
 
-# Load config: try WSL home first, then Windows user profile
-CONF="$HOME/.claude/statusline.conf"
-[ -f "$CONF" ] && source "$CONF"
-# Windows side (when TUI saves to C:\Users\X\.claude\)
+# Load config: Windows side first (TUI saves here), then WSL home as fallback
+CONF=""
 for wconf in /mnt/c/Users/*/.claude/statusline.conf; do
-    [ -f "$wconf" ] && source "$wconf" && break
+    [ -f "$wconf" ] && CONF="$wconf" && break
 done
+[ -z "$CONF" ] && CONF="$HOME/.claude/statusline.conf"
+[ -f "$CONF" ] && source "$CONF"
 
 # ===================================================
 # JSON parser (no jq)
@@ -191,7 +191,7 @@ if [ "$SHOW_7D_LIMIT" = "true" ]; then
 fi
 # Cost: only shown for API key users (not Claude Max subscription)
 [ "$SHOW_COST" = "true" ] && [ -n "$total_cost" ] && [ "$total_cost" != "null" ] && [ "$total_cost" != "0" ] && printf "%b${GR}\$%.2f${R}" "$sep" "$total_cost" 2>/dev/null && sep=" ${GR}|${R} "
-[ "$SHOW_COMMANDS" = "true" ] && printf "%b${D}${GR}${L_SET}: npx cc-status-bar${R}" "$sep"
+[ "$SHOW_COMMANDS" = "true" ] && printf "%b${D}${GR}${L_SET}: npx cc-statusbar${R}" "$sep"
 printf "\n"
 
 # ===================================================

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// cc-status-bar Settings TUI
+// cc-statusbar Settings TUI
 // No dependencies - pure Node.js
 
 const fs = require('fs');
@@ -184,7 +184,7 @@ function load() {
 }
 
 function save(v) {
-  const lines = ['# cc-status-bar configuration', '# Managed by /ccsconfig TUI', ''];
+  const lines = ['# cc-statusbar configuration', '# Managed by /ccsconfig TUI', ''];
   lines.push('# Sections');
   const all = buildItems();
   all.filter(i => i.type === 'bool').forEach(i => lines.push(`${i.key}=${v[i.key] || i.default}`));
@@ -220,7 +220,7 @@ function render() {
 
   const l = t();
   const items = buildItems();
-  out += `  ${CYAN}${B}cc-status-bar ${l.title}${R}\n`;
+  out += `  ${CYAN}${B}cc-statusbar ${l.title}${R}\n`;
   out += `${GRAY}  ${'─'.repeat(W)}${R}\n`;
 
   // Live preview
@@ -243,7 +243,7 @@ function render() {
   if (values.SHOW_CONTEXT !== 'false') prev += `${GRAY}|${R} ${lang.ctx} ${GREEN}${prevBar(21)} 21%${R} `;
   if (values.SHOW_5H_LIMIT !== 'false') prev += `${GRAY}|${R} ${lang.h5} ${GREEN}${prevBar(45)} 45%${R} `;
   if (values.SHOW_7D_LIMIT !== 'false') prev += `${GRAY}|${R} ${lang.d7} ${GREEN}${prevBar(4)} 4%${R} `;
-  if (values.SHOW_COMMANDS !== 'false') prev += `${GRAY}|${R} ${D}${GRAY}${lang.settings}: npx cc-status-bar${R}`;
+  if (values.SHOW_COMMANDS !== 'false') prev += `${GRAY}|${R} ${D}${GRAY}${lang.settings}: npx cc-statusbar${R}`;
   out += prev + '\n';
   out += `${GRAY}  ${'─'.repeat(W)}${R}\n`;
 

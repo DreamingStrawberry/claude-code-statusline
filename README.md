@@ -1,8 +1,8 @@
-# cc-status-bar
+# cc-statusbar
 
 Real-time status bar for [Claude Code](https://claude.ai/claude-code) showing rate limits, context usage, and dev server monitoring.
 
-[![npm](https://img.shields.io/npm/v/cc-status-bar)](https://www.npmjs.com/package/cc-status-bar)
+[![npm](https://img.shields.io/npm/v/cc-statusbar)](https://www.npmjs.com/package/cc-statusbar)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ![preview](preview.svg)
@@ -10,7 +10,7 @@ Real-time status bar for [Claude Code](https://claude.ai/claude-code) showing ra
 ## Install
 
 ```bash
-npx cc-status-bar install
+npx cc-statusbar install
 ```
 
 Restart Claude Code. Done.
@@ -20,7 +20,7 @@ Restart Claude Code. Done.
 Open the interactive settings TUI:
 
 ```bash
-npx cc-status-bar
+npx cc-statusbar
 ```
 
 Keyboard navigation:
@@ -101,10 +101,10 @@ BAR_EMPTY="░"
 ## Commands
 
 ```bash
-npx cc-status-bar            # Open settings TUI
-npx cc-status-bar install    # Install to Claude Code
-npx cc-status-bar uninstall  # Remove
-npx cc-status-bar help       # Help
+npx cc-statusbar            # Open settings TUI
+npx cc-statusbar install    # Install to Claude Code
+npx cc-statusbar uninstall  # Remove
+npx cc-statusbar help       # Help
 ```
 
 ## Requirements
