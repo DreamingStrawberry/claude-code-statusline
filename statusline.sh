@@ -136,10 +136,6 @@ _remain() {
     _fmt_time "$remain_sec" "$fmt"
 }
 
-_spin() {
-    local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠇")
-    echo "${frames[$(( $NOW % 8 ))]}"
-}
 
 # Git
 gb=""; command -v git >/dev/null 2>&1 && [ -d "$cwd" ] && gb=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null)
@@ -225,7 +221,7 @@ fi
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
     ver=""; cmd=""
-    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.13"
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.14"
     [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
     printf "%b" "$sep"
     [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"
@@ -265,7 +261,7 @@ raw=""
 
 # Render services — extract status by keyword match (emoji-safe)
 parts=""
-spin=$(_spin)
+spin=$([ $(( NOW % 2 )) -eq 0 ] && echo "●" || echo "○")
 while IFS= read -r line; do
     [ -z "$line" ] && continue
     # Extract name and :port using bash regex (emoji-safe, no subprocess)
