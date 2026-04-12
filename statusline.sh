@@ -6,6 +6,7 @@
 # Line 2: DevLauncher services (auto-detected, optional)
 
 input=$(cat)
+NOW=$(date +%s)
 
 # ===================================================
 # Config (override via ~/.claude/statusline.conf)
@@ -36,9 +37,22 @@ done
 # ===================================================
 # JSON parser (no jq)
 # ===================================================
-_e()  { echo "$input" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*[^,}]*" | head -1 | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d ' '; }
-_es() { echo "$input" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed 's/.*:[[:space:]]*//' | tr -d '"'; }
-_ea() { echo "$input" | grep -o "$1[^}]*\"$2\"[[:space:]]*:[[:space:]]*[^,}]*" | head -1 | grep -o "\"$2\"[[:space:]]*:[[:space:]]*[^,}]*" | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d ' '; }
+# Bash regex JSON parser (no subprocess forks)
+_e() {
+    local v=""
+    [[ "$input" =~ \"$1\"[[:space:]]*:[[:space:]]*([^,}]+) ]] && v="${BASH_REMATCH[1]}"
+    v="${v//\"/}"; v="${v// /}"; echo "$v"
+}
+_es() {
+    local v=""
+    [[ "$input" =~ \"$1\"[[:space:]]*:[[:space:]]*\"([^\"]*)\" ]] && v="${BASH_REMATCH[1]}"
+    echo "$v"
+}
+_ea() {
+    local v=""
+    [[ "$input" =~ \"$1\"[^}]*\"$2\"[[:space:]]*:[[:space:]]*([^,}]+) ]] && v="${BASH_REMATCH[1]}"
+    v="${v//\"/}"; v="${v// /}"; echo "$v"
+}
 
 # ===================================================
 # Data
@@ -108,7 +122,7 @@ _remain() {
     local reset_ts=$1 pct=$2 fmt=$3
     [ -z "$pct" ] || [ "$pct" -le 0 ] 2>/dev/null && return
     [ -z "$reset_ts" ] || [ "$reset_ts" -le 0 ] 2>/dev/null && return
-    local now=$(date +%s)
+    local now=$NOW  # reuse top-level
     local remain_pct=$(( 100 - pct ))
     # elapsed within window = window_size - time_until_reset
     # For 5h window: window = 18000s, for 7d: 604800s
@@ -124,12 +138,20 @@ _remain() {
 
 _spin() {
     local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠇")
-    echo "${frames[$(( $(date +%s) % 8 ))]}"
+    echo "${frames[$(( $NOW % 8 ))]}"
 }
 
 # Git
 gb=""; command -v git >/dev/null 2>&1 && [ -d "$cwd" ] && gb=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null)
-sp=$(echo "$cwd" | sed 's|\\|/|g' | awk -F/ '{if(NF>2) print $(NF-1)"/"$NF; else print $0}')
+# Short path: last 2 segments (bash builtins only)
+_cwd="${cwd//\\//}"
+IFS='/' read -ra _pp <<< "$_cwd"
+_pn=${#_pp[@]}
+if [ "$_pn" -gt 2 ]; then
+    sp="${_pp[$((_pn-2))]}/${_pp[$((_pn-1))]}"
+else
+    sp="$_cwd"
+fi
 
 # ===================================================
 # Line 1
@@ -185,7 +207,7 @@ fi
 if [ "$SHOW_5H_LIMIT" = "true" ]; then
     printf "%b${L_5H} ${five_color}%s${R} ${five_color}%d%%${R}" "$sep" "$(_bar $fi)" "$fi"
     if [ -n "$five_h_reset" ] && [ "$five_h_reset" -gt 0 ] 2>/dev/null; then
-        d5=$(( five_h_reset - $(date +%s) ))
+        d5=$(( five_h_reset - $NOW ))
         [ "$d5" -gt 0 ] && printf " ${GR}%s${R}" "$(_fmt_time $d5 hm)" || printf " ${GR}now${R}"
     fi
     sep=" ${GR}|${R} "
@@ -193,7 +215,7 @@ fi
 if [ "$SHOW_7D_LIMIT" = "true" ]; then
     printf "%b${L_7D} ${seven_color}%s${R} ${seven_color}%d%%${R}" "$sep" "$(_bar $si)" "$si"
     if [ -n "$seven_d_reset" ] && [ "$seven_d_reset" -gt 0 ] 2>/dev/null; then
-        d7=$(( seven_d_reset - $(date +%s) ))
+        d7=$(( seven_d_reset - $NOW ))
         [ "$d7" -gt 0 ] && printf " ${GR}%s${R}" "$(_fmt_time $d7 dhm)" || printf " ${GR}now${R}"
     fi
     sep=" ${GR}|${R} "
@@ -203,7 +225,7 @@ fi
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
     ver=""; cmd=""
-    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.11"
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.13"
     [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
     printf "%b" "$sep"
     [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"
@@ -224,7 +246,7 @@ done
 [ -z "$DL" ] && exit 0
 
 # Foreground refresh with cache (TTL 5s)
-now=$(date +%s)
+now=$NOW
 need_refresh=true
 [ -f "$CACHE" ] && cached_at=$(head -1 "$CACHE" 2>/dev/null) && [ $(( now - ${cached_at:-0} )) -lt 5 ] 2>/dev/null && need_refresh=false
 
@@ -246,18 +268,16 @@ parts=""
 spin=$(_spin)
 while IFS= read -r line; do
     [ -z "$line" ] && continue
-    # Extract name:port and status using keyword grep (handles unicode emoji prefix)
-    if echo "$line" | grep -q "Running"; then
-        np=$(echo "$line" | grep -oP '\S+\s+:\d+' | head -1 | tr -s ' ')
+    # Extract name and :port using bash regex (emoji-safe, no subprocess)
+    [[ "$line" =~ ([A-Za-z0-9_-]+)[[:space:]]+(:[0-9]+) ]] || continue
+    np="${BASH_REMATCH[1]} ${BASH_REMATCH[2]}"
+    if [[ "$line" == *Running* ]]; then
         parts="${parts:+$parts ${GR}|${R} }${GN}●${R} ${GN}${B}${np}${R}"
-    elif echo "$line" | grep -q "Starting"; then
-        np=$(echo "$line" | grep -oP '\S+\s+:\d+' | head -1 | tr -s ' ')
+    elif [[ "$line" == *Starting* ]]; then
         parts="${parts:+$parts ${GR}|${R} }${YL}${spin}${R} ${YL}${B}${np}${R}"
-    elif echo "$line" | grep -q "Error"; then
-        np=$(echo "$line" | grep -oP '\S+\s+:\d+' | head -1 | tr -s ' ')
+    elif [[ "$line" == *Error* ]]; then
         parts="${parts:+$parts ${GR}|${R} }${BK}${RD}✖${R} ${RD}${B}${np}${R}"
-    elif echo "$line" | grep -q "Stopped"; then
-        np=$(echo "$line" | grep -oP '\S+\s+:\d+' | head -1 | tr -s ' ')
+    elif [[ "$line" == *Stopped* ]]; then
         parts="${parts:+$parts ${GR}|${R} }${GR}● ${np}${R}"
     fi
 done <<< "$raw"
