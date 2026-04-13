@@ -88,7 +88,9 @@ function installTo(t) {
   console.log(`  statusline.ps1 -> ${t.scriptPsDest}`);
 
   if (!fs.existsSync(t.confDest)) {
-    fs.copyFileSync(confSrc, t.confDest);
+    // Write conf with UTF-8 BOM so PowerShell reads unicode correctly
+    const confContent = fs.readFileSync(confSrc);
+    fs.writeFileSync(t.confDest, Buffer.concat([bom, confContent]));
     console.log(`  statusline.conf -> ${t.confDest}`);
   }
 

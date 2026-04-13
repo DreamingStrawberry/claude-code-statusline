@@ -18,7 +18,7 @@ $LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10; $BAR_FILL=[char]0x2593; $BAR
 $confPath = Join-Path $env:USERPROFILE ".claude\statusline.conf"
 if (-not (Test-Path $confPath)) { $confPath = Join-Path $HOME ".claude\statusline.conf" }
 if (Test-Path $confPath) {
-    foreach ($line in Get-Content $confPath) {
+    foreach ($line in (Get-Content $confPath -Encoding UTF8)) {
         if ($line -match '^(\w+)=(.*)$') {
             $k = $Matches[1]; $v = $Matches[2].Trim('"', "'")
             switch ($k) {
