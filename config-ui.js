@@ -131,7 +131,7 @@ function buildItems() {
     { key: '_hdr_ui', type: 'header', label: l.ui },
     { key: 'LANGUAGE', label: `🌐 ${l.lang}`, type: 'language', default: 'en' },
     { key: 'SHOW_COMMANDS', label: l.hint, type: 'bool', default: 'true' },
-    { key: 'SHOW_VERSION', label: 'Version (v1.0.20)', type: 'bool', default: 'true' },
+    { key: 'SHOW_VERSION', label: 'Version (v1.0.21)', type: 'bool', default: 'true' },
     { key: '_hdr_bar', type: 'header', label: l.bar },
     { key: 'BAR_STYLE', label: l.barStyle, type: 'select', options: Object.keys(STYLES), default: 'blocks' },
     { key: 'BAR_WIDTH', label: l.barWidth, type: 'number', min: 4, max: 20, default: '10' },

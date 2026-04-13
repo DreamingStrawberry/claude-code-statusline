@@ -227,7 +227,7 @@ fi
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
     ver=""; cmd=""
-    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.20"
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.21"
     [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
     printf "%b" "$sep"
     [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"

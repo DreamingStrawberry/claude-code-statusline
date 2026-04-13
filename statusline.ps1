@@ -13,7 +13,7 @@ if (-not $input) { $input = [Console]::In.ReadToEnd() }
 # ===================================================
 $SHOW_MODEL=$true; $SHOW_PATH=$true; $SHOW_GIT_BRANCH=$true; $SHOW_CONTEXT=$true
 $SHOW_5H_LIMIT=$true; $SHOW_7D_LIMIT=$true; $SHOW_COST=$false; $SHOW_COMMANDS=$true
-$LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10; $BAR_FILL=[char]0x2593; $BAR_EMPTY=[char]0x2591
+$LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10
 
 $confPath = Join-Path $env:USERPROFILE ".claude\statusline.conf"
 if (-not (Test-Path $confPath)) { $confPath = Join-Path $HOME ".claude\statusline.conf" }
@@ -33,8 +33,8 @@ if (Test-Path $confPath) {
                 'LANGUAGE'        { $LANGUAGE = $v }
                 'BAR_STYLE'       { $BAR_STYLE = $v }
                 'BAR_WIDTH'       { $BAR_WIDTH = [int]$v }
-                'BAR_FILL'        { $BAR_FILL = $v }
-                'BAR_EMPTY'       { $BAR_EMPTY = $v }
+                # BAR_FILL/BAR_EMPTY ignored in PowerShell: encoding-unsafe.
+                # Use BAR_STYLE instead (blocks, dots, squares, lines, triangles, ascii)
             }
         }
     }
@@ -75,7 +75,7 @@ function Get-PctColor([int]$p) {
 # Bar
 # ===================================================
 $STYLES = @{
-    blocks    = @{ fill = $BAR_FILL; empty = $BAR_EMPTY }
+    blocks    = @{ fill = [char]0x2593; empty = [char]0x2591 }
     dots      = @{ fill = [char]0x25CF; empty = [char]0x25CB }
     squares   = @{ fill = [char]0x25A0; empty = [char]0x25A1 }
     lines     = @{ fill = [char]0x2501; empty = [char]0x2500 }
