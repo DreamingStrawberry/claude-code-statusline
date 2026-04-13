@@ -3,7 +3,37 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const home = process.env.HOME || process.env.USERPROFILE;
+// Detect WSL even when running under Windows node
+const isWSLFS = fs.existsSync('/proc/version');
+let isWSLRuntime = false;
+try {
+  if (isWSLFS) {
+    isWSLRuntime = fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
+  }
+} catch (e) {}
+
+// Warn if Windows node running in WSL
+if (process.platform === 'win32' && isWSLFS) {
+  console.error('WARNING: You are running Windows node inside WSL.');
+  console.error('This will install to Windows paths (C:\\Users\\...), not WSL paths (/home/USER/.claude/).');
+  console.error('For WSL-native install:');
+  console.error('  1. cd ~');
+  console.error('  2. Install WSL node: sudo apt install nodejs npm');
+  console.error('  3. Re-run: npx cc-statusbar install');
+  console.error('');
+}
+
+// Determine home based on actual runtime
+let home;
+if (isWSLRuntime) {
+  // Native WSL run - use WSL HOME
+  home = process.env.HOME || `/home/${process.env.USER || require('os').userInfo().username}`;
+} else if (process.platform === 'win32') {
+  home = process.env.USERPROFILE;
+} else {
+  home = process.env.HOME;
+}
+
 const claudeDir = path.join(home, '.claude');
 const settingsPath = path.join(claudeDir, 'settings.json');
 const scriptDest = path.join(claudeDir, 'statusline.sh');
