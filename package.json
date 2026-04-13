@@ -1,6 +1,6 @@
 {
   "name": "cc-statusbar",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Status line for Claude Code showing rate limits (5h/7d), context usage, cost, and DevLauncher service status",
   "bin": {
     "cc-statusbar": "./entry.js",
@@ -24,6 +24,9 @@
   },
   "author": "DreamingStrawberry",
   "license": "MIT",
+  "scripts": {
+    "prepublishOnly": "node sync-version.js"
+  },
   "files": [
     "entry.js",
     "cli.js",
