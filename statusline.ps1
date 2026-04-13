@@ -13,7 +13,7 @@ if (-not $input) { $input = [Console]::In.ReadToEnd() }
 # ===================================================
 $SHOW_MODEL=$true; $SHOW_PATH=$true; $SHOW_GIT_BRANCH=$true; $SHOW_CONTEXT=$true
 $SHOW_5H_LIMIT=$true; $SHOW_7D_LIMIT=$true; $SHOW_COST=$false; $SHOW_COMMANDS=$true
-$LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10
+$SHOW_VERSION=$true; $LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10
 
 $confPath = Join-Path $env:USERPROFILE ".claude\statusline.conf"
 if (-not (Test-Path $confPath)) { $confPath = Join-Path $HOME ".claude\statusline.conf" }
@@ -30,6 +30,7 @@ if (Test-Path $confPath) {
                 'SHOW_7D_LIMIT'   { $SHOW_7D_LIMIT = $v -eq 'true' }
                 'SHOW_COST'       { $SHOW_COST = $v -eq 'true' }
                 'SHOW_COMMANDS'   { $SHOW_COMMANDS = $v -eq 'true' }
+                'SHOW_VERSION'    { $SHOW_VERSION = $v -eq 'true' }
                 'LANGUAGE'        { $LANGUAGE = $v }
                 'BAR_STYLE'       { $BAR_STYLE = $v }
                 'BAR_WIDTH'       { $BAR_WIDTH = [int]$v }
@@ -126,7 +127,7 @@ $sep = ""
 
 if ($SHOW_MODEL) {
     $out += "${CY}${B}${model}${R}"
-    if ($exceeds200k) { $out += " ${GN}thinking:on${R}" } else { $out += " ${GR}thinking:off${R}" }
+    if ($exceeds200k -or ($ctxSize -gt 200000)) { $out += " ${GN}thinking:on${R}" } else { $out += " ${GR}thinking:off${R}" }
     $sep = " ${GR}|${R} "
 }
 if ($SHOW_PATH) {
@@ -164,8 +165,11 @@ if ($SHOW_COST -and $totalCost -and $totalCost -ne 0) {
     $out += "${sep}${GR}`$${totalCost:F2}${R}"
     $sep = " ${GR}|${R} "
 }
-if ($SHOW_COMMANDS) {
-    $out += "${sep}${D}${GR}$($L.set): npx cc-statusbar${R}"
+if ($SHOW_COMMANDS -or $SHOW_VERSION) {
+    $out += "$sep"
+    if ($SHOW_VERSION) { $out += "${GR}v1.0.23${R}" }
+    if ($SHOW_VERSION -and $SHOW_COMMANDS) { $out += " ${GR}|${R} " }
+    if ($SHOW_COMMANDS) { $out += "${D}${GR}$($L.set): npx cc-statusbar${R}" }
 }
 
 Write-Host $out
