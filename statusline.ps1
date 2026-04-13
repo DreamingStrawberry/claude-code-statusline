@@ -1,6 +1,10 @@
 # cc-statusbar - Claude Code Status Bar (PowerShell)
 # https://github.com/DreamingStrawberry/claude-code-statusline
 
+# Force UTF-8 output for unicode bar characters
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 $input = $input | Out-String
 if (-not $input) { $input = [Console]::In.ReadToEnd() }
 

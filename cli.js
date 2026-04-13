@@ -3,7 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Detect WSL even when running under Windows node
+// ===================================================
+// Environment detection
+// ===================================================
 const isWSLFS = fs.existsSync('/proc/version');
 let isWSLRuntime = false;
 try {
@@ -12,138 +14,154 @@ try {
   }
 } catch (e) {}
 
-// Warn if Windows node running in WSL
-if (process.platform === 'win32' && isWSLFS) {
-  console.error('WARNING: You are running Windows node inside WSL.');
-  console.error('This will install to Windows paths (C:\\Users\\...), not WSL paths (/home/USER/.claude/).');
-  console.error('For WSL-native install:');
-  console.error('  1. cd ~');
-  console.error('  2. Install WSL node: sudo apt install nodejs npm');
-  console.error('  3. Re-run: npx cc-statusbar install');
-  console.error('');
+// ===================================================
+// Collect install targets (install to all detected paths)
+// ===================================================
+const targets = [];
+
+function addTarget(home, shellType) {
+  if (!home || !fs.existsSync(home)) return;
+  targets.push({
+    home,
+    claudeDir: path.join(home, '.claude'),
+    scriptDest: path.join(home, '.claude', 'statusline.sh'),
+    scriptPsDest: path.join(home, '.claude', 'statusline.ps1'),
+    confDest: path.join(home, '.claude', 'statusline.conf'),
+    settingsPath: path.join(home, '.claude', 'settings.json'),
+    shellType
+  });
 }
 
-// Determine home based on actual runtime
-let home;
 if (isWSLRuntime) {
-  // Native WSL run - use WSL HOME
-  home = process.env.HOME || `/home/${process.env.USER || require('os').userInfo().username}`;
+  // WSL native - install to WSL home only
+  addTarget(process.env.HOME || `/home/${process.env.USER || require('os').userInfo().username}`, 'bash');
 } else if (process.platform === 'win32') {
-  home = process.env.USERPROFILE;
+  // Windows - always install to Windows home
+  addTarget(process.env.USERPROFILE, 'powershell');
+
+  // Also install to WSL home if WSL is available
+  try {
+    const wslUser = execSync('wsl.exe -e whoami', { encoding: 'utf8', timeout: 3000 }).trim();
+    if (wslUser) {
+      for (const distro of ['Ubuntu', 'Ubuntu-24.04', 'Ubuntu-22.04', 'Ubuntu-20.04', 'Debian']) {
+        const wslHome = `\\\\wsl.localhost\\${distro}\\home\\${wslUser}`;
+        if (fs.existsSync(wslHome)) {
+          addTarget(wslHome, 'bash');
+          break;
+        }
+      }
+    }
+  } catch (e) {}
 } else {
-  home = process.env.HOME;
+  addTarget(process.env.HOME, 'bash');
 }
 
-const claudeDir = path.join(home, '.claude');
-const settingsPath = path.join(claudeDir, 'settings.json');
-const scriptDest = path.join(claudeDir, 'statusline.sh');
-const confDest = path.join(claudeDir, 'statusline.conf');
+if (targets.length === 0) {
+  console.error('ERROR: Could not determine installation path.');
+  process.exit(1);
+}
+
 const scriptSrc = path.join(__dirname, 'statusline.sh');
 const scriptPsSrc = path.join(__dirname, 'statusline.ps1');
-const scriptPsDest = path.join(claudeDir, 'statusline.ps1');
 const confSrc = path.join(__dirname, 'statusline.conf.example');
+
+// Backward compat for uninstall
+const primary = targets[0];
+const { claudeDir, scriptDest, scriptPsDest, confDest, settingsPath } = primary;
 
 const cmd = process.argv[2];
 
-function install() {
-  if (!fs.existsSync(claudeDir)) fs.mkdirSync(claudeDir, { recursive: true });
+// ===================================================
+// Install to a single target
+// ===================================================
+function installTo(t) {
+  console.log(`\n[${t.shellType === 'bash' ? 'WSL/Linux' : 'Windows'}] Installing to ${t.home}`);
+  if (!fs.existsSync(t.claudeDir)) fs.mkdirSync(t.claudeDir, { recursive: true });
 
-  // Copy both statusline.sh and statusline.ps1
-  fs.copyFileSync(scriptSrc, scriptDest);
-  try { fs.chmodSync(scriptDest, 0o755); } catch (e) {}
-  // Write ps1 with UTF-8 BOM for PowerShell 5.1 compatibility
+  // Copy scripts
+  fs.copyFileSync(scriptSrc, t.scriptDest);
+  try { fs.chmodSync(t.scriptDest, 0o755); } catch (e) {}
   const ps1Content = fs.readFileSync(scriptPsSrc);
   const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
-  fs.writeFileSync(scriptPsDest, Buffer.concat([bom, ps1Content]));
-  console.log(`Copied statusline.sh -> ${scriptDest}`);
-  console.log(`Copied statusline.ps1 -> ${scriptPsDest} (UTF-8 BOM)`);
+  fs.writeFileSync(t.scriptPsDest, Buffer.concat([bom, ps1Content]));
+  console.log(`  statusline.sh -> ${t.scriptDest}`);
+  console.log(`  statusline.ps1 -> ${t.scriptPsDest}`);
 
-  // Copy example config if no config exists
-  if (!fs.existsSync(confDest)) {
-    fs.copyFileSync(confSrc, confDest);
-    console.log(`Copied statusline.conf.example -> ${confDest}`);
+  if (!fs.existsSync(t.confDest)) {
+    fs.copyFileSync(confSrc, t.confDest);
+    console.log(`  statusline.conf -> ${t.confDest}`);
   }
-
 
   // Update settings.json
   let settings = {};
-  if (fs.existsSync(settingsPath)) {
-    try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); } catch (e) {}
+  if (fs.existsSync(t.settingsPath)) {
+    try { settings = JSON.parse(fs.readFileSync(t.settingsPath, 'utf8')); } catch (e) {}
   }
 
-  // Detect shell preference: --shell bash or --shell powershell
   const shellArg = process.argv.indexOf('--shell') >= 0 ? process.argv[process.argv.indexOf('--shell') + 1] : null;
-
-  const isWSL = process.platform === 'linux' && fs.existsSync('/proc/version') &&
-    fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
-  const isWindows = process.platform === 'win32';
-  const hasGitBash = isWindows && (process.env.SHELL || '').includes('bash');
+  const actualShell = shellArg || t.shellType;
 
   let shellCmd;
-  if (shellArg === 'bash') {
+  if (actualShell === 'bash') {
     shellCmd = `bash ~/.claude/statusline.sh`;
-  } else if (shellArg === 'powershell') {
-    shellCmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPsDest}"`;
-  } else if (isWSL || hasGitBash) {
-    shellCmd = `bash ${isWSL ? scriptDest : '~/.claude/statusline.sh'}`;
-  } else if (isWindows) {
-    shellCmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPsDest}"`;
   } else {
-    shellCmd = `bash ~/.claude/statusline.sh`;
+    // Use Windows-style path for PowerShell
+    const winPath = t.scriptPsDest.replace(/\\/g, '\\\\');
+    shellCmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${winPath}"`;
   }
 
-  // Don't overwrite if already configured with cc-statusbar
   const existingCmd = settings.statusLine && settings.statusLine.command;
   if (existingCmd && (existingCmd.includes('statusline.sh') || existingCmd.includes('statusline.ps1')) && !shellArg) {
-    console.log(`Keeping existing statusLine command: ${existingCmd}`);
-    console.log('Use --shell bash or --shell powershell to override.');
+    console.log(`  settings.json: keeping existing "${existingCmd}"`);
   } else {
-    settings.statusLine = {
-      type: 'command',
-      command: shellCmd,
-      refreshInterval: 3
-    };
+    settings.statusLine = { type: 'command', command: shellCmd, refreshInterval: 3 };
+    console.log(`  settings.json: command = "${shellCmd}"`);
   }
 
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
-  console.log(`Updated ${settingsPath}`);
+  fs.writeFileSync(t.settingsPath, JSON.stringify(settings, null, 2) + '\n');
+}
+
+function install() {
+  for (const t of targets) installTo(t);
   console.log('\nDone! Restart Claude Code to see the status line.');
-  console.log('Edit ~/.claude/statusline.conf to customize.\n');
-  console.log('Shows: Model | Path@Branch | Context% | 5h limit | 7d limit | Cost');
-  console.log('       + DevLauncher services (if installed)');
+  console.log('Edit statusline.conf in your .claude dir to customize.');
 }
 
 function uninstall() {
-  if (fs.existsSync(scriptDest)) {
-    fs.unlinkSync(scriptDest);
-    console.log(`Removed ${scriptDest}`);
-  }
-  if (fs.existsSync(settingsPath)) {
-    try {
-      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-      delete settings.statusLine;
-      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
-      console.log(`Removed statusLine from ${settingsPath}`);
-    } catch (e) {}
+  for (const t of targets) {
+    if (fs.existsSync(t.scriptDest)) fs.unlinkSync(t.scriptDest);
+    if (fs.existsSync(t.scriptPsDest)) fs.unlinkSync(t.scriptPsDest);
+    if (fs.existsSync(t.settingsPath)) {
+      try {
+        const s = JSON.parse(fs.readFileSync(t.settingsPath, 'utf8'));
+        delete s.statusLine;
+        fs.writeFileSync(t.settingsPath, JSON.stringify(s, null, 2) + '\n');
+        console.log(`Removed statusLine from ${t.settingsPath}`);
+      } catch (e) {}
+    }
   }
   console.log('Uninstalled. Restart Claude Code to apply.');
 }
 
 function showHelp() {
-  console.log(`claude-code-statusline - Status line for Claude Code
+  console.log(`cc-statusbar - Status line for Claude Code
 
 Usage:
-  npx claude-code-statusline install     Install status line
-  npx claude-code-statusline uninstall   Remove status line
-  npx claude-code-statusline update      Update to latest version
-  npx claude-code-statusline help        Show this help
+  npx cc-statusbar               Open settings TUI
+  npx cc-statusbar install       Install (auto-detects WSL + Windows)
+  npx cc-statusbar uninstall     Remove
+  npx cc-statusbar update        Reinstall from latest
+  npx cc-statusbar help          This help
 
-Config: ~/.claude/statusline.conf
-Repo:   https://github.com/DreamingStrawberry/claude-code-statusline`);
+Flags:
+  --shell bash         Force bash command
+  --shell powershell   Force powershell command
+
+Repo: https://github.com/DreamingStrawberry/claude-code-statusline`);
 }
 
 switch (cmd) {
-  case 'install': case undefined: install(); break;
+  case 'install': install(); break;
   case 'uninstall': case 'remove': uninstall(); break;
   case 'update': install(); break;
   case 'help': case '--help': case '-h': showHelp(); break;
