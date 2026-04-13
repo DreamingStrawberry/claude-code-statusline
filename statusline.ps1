@@ -137,10 +137,10 @@ if ($SHOW_PATH) {
 }
 if ($SHOW_CONTEXT) {
     $cc = Get-PctColor $usedPct
-    $ctxLeft = $ctxSize - [Math]::Floor($ctxSize * $usedPct / 100)
-    $ctxLeftFmt = if ($ctxLeft -ge 1000000) { "{0}.{1}M" -f [Math]::Floor($ctxLeft/1000000), [Math]::Floor($ctxLeft%1000000/100000) } elseif ($ctxLeft -ge 1000) { "{0}k" -f [Math]::Floor($ctxLeft/1000) } else { "$ctxLeft" }
+    $ctxUsedN = [Math]::Floor($ctxSize * $usedPct / 100)
+    $ctxUsedFmt = if ($ctxUsedN -ge 1000000) { "{0}.{1}M" -f [Math]::Floor($ctxUsedN/1000000), [Math]::Floor($ctxUsedN%1000000/100000) } elseif ($ctxUsedN -ge 1000) { "{0}k" -f [Math]::Floor($ctxUsedN/1000) } else { "$ctxUsedN" }
     $ctxTotalFmt = if ($ctxSize -ge 1000000) { "{0}.{1}M" -f [Math]::Floor($ctxSize/1000000), [Math]::Floor($ctxSize%1000000/100000) } else { "{0}k" -f [Math]::Floor($ctxSize/1000) }
-    $out += "${sep}$($L.ctx) ${cc}$(Make-Bar $usedPct)${R} ${cc}${usedPct}%${R} ${GR}${ctxLeftFmt}/${ctxTotalFmt}${R}"
+    $out += "${sep}$($L.ctx) ${cc}$(Make-Bar $usedPct)${R} ${cc}${usedPct}%${R} ${GR}${ctxUsedFmt}/${ctxTotalFmt}${R}"
     $sep = " ${GR}|${R} "
 }
 if ($SHOW_5H_LIMIT) {
