@@ -6,6 +6,12 @@
 # Line 2: DevLauncher services (auto-detected, optional)
 
 input=$(cat)
+
+# Debug log (enable by: touch /tmp/cc-statusbar-debug)
+if [ -f /tmp/cc-statusbar-debug ]; then
+    echo "[$(date '+%H:%M:%S')] called from $(ps -o ppid= -p $$ | tr -d ' ' | xargs ps -o comm= -p 2>/dev/null || echo unknown)" >> /tmp/cc-statusbar-debug.log
+    echo "input_len=${#input}" >> /tmp/cc-statusbar-debug.log
+fi
 NOW=$(date +%s)
 
 # ===================================================
@@ -221,7 +227,7 @@ fi
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
     ver=""; cmd=""
-    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.18"
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.19"
     [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
     printf "%b" "$sep"
     [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"
@@ -280,3 +286,4 @@ done <<< "$raw"
 if [ -n "$parts" ]; then
     printf "\n${GR}${L_SVC}${R} $parts"
 fi
+printf "\n"
