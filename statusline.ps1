@@ -87,7 +87,10 @@ function Make-Bar([int]$pct) {
     $s = $STYLES[$BAR_STYLE]; if (-not $s) { $s = $STYLES['blocks'] }
     $n = [Math]::Round($pct * $BAR_WIDTH / 100); if ($n -gt $BAR_WIDTH) { $n = $BAR_WIDTH }
     $m = $BAR_WIDTH - $n
-    return ($s.fill * $n) + ($s.empty * $m)
+    # Force string conversion - [char] * int doesn't repeat in PS 5.1
+    $fs = [string]$s.fill
+    $es = [string]$s.empty
+    return ($fs * $n) + ($es * $m)
 }
 
 function Format-Time([int]$sec, [string]$fmt) {
