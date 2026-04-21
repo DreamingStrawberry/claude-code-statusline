@@ -10,17 +10,27 @@ Real-time status bar for [Claude Code](https://claude.ai/claude-code) showing ra
 ## Install
 
 ```bash
+npm install -g cc-statusbar
+cc-statusbar install
+```
+
+Or with npx (no global install):
+
+```bash
 npx cc-statusbar install
 ```
 
 Restart Claude Code. Done.
+
+Updates check daily and apply silently in the background — no manual reinstall needed.
 
 ## Configure
 
 Open the interactive settings TUI:
 
 ```bash
-npx cc-statusbar
+cc-statusbar        # if installed globally
+npx cc-statusbar    # or via npx
 ```
 
 Keyboard navigation:
@@ -101,11 +111,14 @@ BAR_EMPTY="░"
 ## Commands
 
 ```bash
-npx cc-statusbar            # Open settings TUI
-npx cc-statusbar install    # Install to Claude Code
-npx cc-statusbar uninstall  # Remove
-npx cc-statusbar help       # Help
+cc-statusbar                # Open settings TUI
+cc-statusbar install        # Install to Claude Code
+cc-statusbar uninstall      # Remove
+cc-statusbar update         # Force reinstall latest
+cc-statusbar help           # Help
 ```
+
+All commands work with `npx cc-statusbar ...` too if you prefer not to install globally.
 
 ## Requirements
 
