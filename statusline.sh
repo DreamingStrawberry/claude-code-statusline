@@ -227,7 +227,7 @@ fi
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
     ver=""; cmd=""
-    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.23"
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.25"
     [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
     printf "%b" "$sep"
     [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"
@@ -287,3 +287,17 @@ if [ -n "$parts" ]; then
     printf "\n${GR}${L_SVC}${R} $parts"
 fi
 printf "\n"
+
+# ===================================================
+# Auto-update (daily, silent, background)
+# ===================================================
+_CC_UPDATE_FLAG="$HOME/.claude/.cc-last-check"
+_need_check=true
+if [ -f "$_CC_UPDATE_FLAG" ]; then
+    _last=$(cat "$_CC_UPDATE_FLAG" 2>/dev/null)
+    [ $(( NOW - ${_last:-0} )) -lt 86400 ] 2>/dev/null && _need_check=false
+fi
+if [ "$_need_check" = "true" ] && command -v npm >/dev/null 2>&1; then
+    echo "$NOW" > "$_CC_UPDATE_FLAG" 2>/dev/null
+    (nohup sh -c 'npm install -g cc-statusbar@latest >/dev/null 2>&1 && cc-statusbar install >/dev/null 2>&1' >/dev/null 2>&1 </dev/null &) >/dev/null 2>&1
+fi

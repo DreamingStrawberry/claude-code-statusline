@@ -167,7 +167,7 @@ if ($SHOW_COST -and $totalCost -and $totalCost -ne 0) {
 }
 if ($SHOW_COMMANDS -or $SHOW_VERSION) {
     $out += "$sep"
-    if ($SHOW_VERSION) { $out += "${GR}v1.0.23${R}" }
+    if ($SHOW_VERSION) { $out += "${GR}v1.0.25${R}" }
     if ($SHOW_VERSION -and $SHOW_COMMANDS) { $out += " ${GR}|${R} " }
     if ($SHOW_COMMANDS) { $out += "${D}${GR}$($L.set): npx cc-statusbar${R}" }
 }
@@ -217,4 +217,24 @@ if (Test-Path $cache) {
         }
     }
     if ($parts) { Write-Host "${GR}$($L.svc)${R}$parts" }
+}
+
+# ===================================================
+# Auto-update (daily, silent, background)
+# ===================================================
+$updateFlag = Join-Path $env:USERPROFILE ".claude\.cc-last-check"
+$needCheck = $true
+if (Test-Path $updateFlag) {
+    try {
+        $last = [int]((Get-Content $updateFlag -ErrorAction SilentlyContinue) -join '')
+        if (($now - $last) -lt 86400) { $needCheck = $false }
+    } catch {}
+}
+if ($needCheck -and (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
+    try {
+        $now | Set-Content $updateFlag -ErrorAction SilentlyContinue
+        Start-Process -WindowStyle Hidden -FilePath "cmd.exe" `
+            -ArgumentList "/c","npm install -g cc-statusbar@latest >nul 2>&1 && cc-statusbar install >nul 2>&1" `
+            -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
 }
