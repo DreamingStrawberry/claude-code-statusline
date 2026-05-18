@@ -12,6 +12,7 @@ SHOW_COST=false
 SHOW_COMMANDS=true
 SHOW_VERSION=true
 SHOW_EFFORT=true
+SHOW_FAST=true
 
 # Refresh interval in seconds (set in settings.json, shown here for reference)
 # REFRESH_INTERVAL=10

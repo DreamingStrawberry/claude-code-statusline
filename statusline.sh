@@ -27,6 +27,7 @@ SHOW_COST=false
 SHOW_COMMANDS=true
 SHOW_VERSION=true
 SHOW_EFFORT=true
+SHOW_FAST=true
 LANGUAGE=en
 BAR_STYLE=blocks
 BAR_WIDTH=10
@@ -67,6 +68,7 @@ _ea() {
 model=$(_es "display_name")
 cwd=$(_es "current_dir"); [ -z "$cwd" ] && cwd=$(_es "cwd")
 exceeds_200k=$(_e "exceeds_200k_tokens")
+fast_mode=$(_e "fast_mode")
 thinking_enabled=$(_ea "thinking" "enabled")
 effort_level=$(_ea "effort" "level")
 used_pct=$(_e "used_percentage")
@@ -197,6 +199,10 @@ if [ "$SHOW_MODEL" = "true" ]; then
         esac
         printf " ${ec}effort:%s${R}" "$effort_level"
     fi
+    # Fast mode
+    if [ "$SHOW_FAST" = "true" ] && [ "$fast_mode" = "true" ]; then
+        printf " ${YL}fast:on${R}"
+    fi
     sep=" ${GR}|${R} "
 fi
 if [ "$SHOW_PATH" = "true" ]; then
@@ -223,20 +229,18 @@ if [ "$SHOW_CONTEXT" = "true" ]; then
     printf "%b${L_CTX} ${ctx_color}%s${R} ${ctx_color}%d%%${R} ${GR}%s/%s${R}" "$sep" "$(_bar $ui)" "$ui" "$ctx_used_fmt" "$ctx_total_fmt"
     sep=" ${GR}|${R} "
 fi
-if [ "$SHOW_5H_LIMIT" = "true" ]; then
+# Only show rate limits when Claude Code actually sends them (resets_at present and > 0).
+# Fast mode and some session states omit rate_limits entirely.
+if [ "$SHOW_5H_LIMIT" = "true" ] && [ -n "$five_h_reset" ] && [ "$five_h_reset" -gt 0 ] 2>/dev/null; then
     printf "%b${L_5H} ${five_color}%s${R} ${five_color}%d%%${R}" "$sep" "$(_bar $fi)" "$fi"
-    if [ -n "$five_h_reset" ] && [ "$five_h_reset" -gt 0 ] 2>/dev/null; then
-        d5=$(( five_h_reset - $NOW ))
-        [ "$d5" -gt 0 ] && printf " ${GR}%s${R}" "$(_fmt_time $d5 hm)" || printf " ${GR}now${R}"
-    fi
+    d5=$(( five_h_reset - $NOW ))
+    [ "$d5" -gt 0 ] && printf " ${GR}%s${R}" "$(_fmt_time $d5 hm)" || printf " ${GR}now${R}"
     sep=" ${GR}|${R} "
 fi
-if [ "$SHOW_7D_LIMIT" = "true" ]; then
+if [ "$SHOW_7D_LIMIT" = "true" ] && [ -n "$seven_d_reset" ] && [ "$seven_d_reset" -gt 0 ] 2>/dev/null; then
     printf "%b${L_7D} ${seven_color}%s${R} ${seven_color}%d%%${R}" "$sep" "$(_bar $si)" "$si"
-    if [ -n "$seven_d_reset" ] && [ "$seven_d_reset" -gt 0 ] 2>/dev/null; then
-        d7=$(( seven_d_reset - $NOW ))
-        [ "$d7" -gt 0 ] && printf " ${GR}%s${R}" "$(_fmt_time $d7 dhm)" || printf " ${GR}now${R}"
-    fi
+    d7=$(( seven_d_reset - $NOW ))
+    [ "$d7" -gt 0 ] && printf " ${GR}%s${R}" "$(_fmt_time $d7 dhm)" || printf " ${GR}now${R}"
     sep=" ${GR}|${R} "
 fi
 # Cost: only shown for API key users (not Claude Max subscription)
@@ -244,7 +248,7 @@ fi
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
     ver=""; cmd=""
-    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.26"
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.27"
     [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
     printf "%b" "$sep"
     [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"

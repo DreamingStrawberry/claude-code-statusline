@@ -131,8 +131,9 @@ function buildItems() {
     { key: '_hdr_ui', type: 'header', label: l.ui },
     { key: 'LANGUAGE', label: `🌐 ${l.lang}`, type: 'language', default: 'en' },
     { key: 'SHOW_COMMANDS', label: l.hint, type: 'bool', default: 'true' },
-    { key: 'SHOW_VERSION', label: 'Version (v1.0.26)', type: 'bool', default: 'true' },
+    { key: 'SHOW_VERSION', label: 'Version (v1.0.27)', type: 'bool', default: 'true' },
     { key: 'SHOW_EFFORT', label: 'Effort level (effort:max etc.)', type: 'bool', default: 'true' },
+    { key: 'SHOW_FAST', label: 'Fast mode (fast:on)', type: 'bool', default: 'true' },
     { key: '_hdr_bar', type: 'header', label: l.bar },
     { key: 'BAR_STYLE', label: l.barStyle, type: 'select', options: Object.keys(STYLES), default: 'blocks' },
     { key: 'BAR_WIDTH', label: l.barWidth, type: 'number', min: 4, max: 20, default: '10' },
@@ -143,7 +144,7 @@ function buildItems() {
 
 const DEFAULTS = { SHOW_MODEL: 'true', SHOW_PATH: 'true', SHOW_GIT_BRANCH: 'true', SHOW_CONTEXT: 'true',
   SHOW_5H_LIMIT: 'true', SHOW_7D_LIMIT: 'true', SHOW_COST: 'false', SHOW_COMMANDS: 'true',
-  SHOW_VERSION: 'true', SHOW_EFFORT: 'true',
+  SHOW_VERSION: 'true', SHOW_EFFORT: 'true', SHOW_FAST: 'true',
   LANGUAGE: 'en', BAR_STYLE: 'blocks', BAR_WIDTH: '10' };
 
 // Display width: CJK/emoji = 2, others = 1

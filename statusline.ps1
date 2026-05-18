@@ -13,7 +13,7 @@ if (-not $input) { $input = [Console]::In.ReadToEnd() }
 # ===================================================
 $SHOW_MODEL=$true; $SHOW_PATH=$true; $SHOW_GIT_BRANCH=$true; $SHOW_CONTEXT=$true
 $SHOW_5H_LIMIT=$true; $SHOW_7D_LIMIT=$true; $SHOW_COST=$false; $SHOW_COMMANDS=$true
-$SHOW_VERSION=$true; $SHOW_EFFORT=$true; $LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10
+$SHOW_VERSION=$true; $SHOW_EFFORT=$true; $SHOW_FAST=$true; $LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10
 
 $confPath = Join-Path $env:USERPROFILE ".claude\statusline.conf"
 if (-not (Test-Path $confPath)) { $confPath = Join-Path $HOME ".claude\statusline.conf" }
@@ -32,6 +32,7 @@ if (Test-Path $confPath) {
                 'SHOW_COMMANDS'   { $SHOW_COMMANDS = $v -eq 'true' }
                 'SHOW_VERSION'    { $SHOW_VERSION = $v -eq 'true' }
                 'SHOW_EFFORT'     { $SHOW_EFFORT = $v -eq 'true' }
+                'SHOW_FAST'       { $SHOW_FAST = $v -eq 'true' }
                 'LANGUAGE'        { $LANGUAGE = $v }
                 'BAR_STYLE'       { $BAR_STYLE = $v }
                 'BAR_WIDTH'       { $BAR_WIDTH = [int]$v }
@@ -51,6 +52,7 @@ if (-not $json) { exit }
 $model = $json.model.display_name
 $cwd = $json.workspace.current_dir; if (-not $cwd) { $cwd = $json.cwd }
 $exceeds200k = $json.exceeds_200k_tokens
+$fastMode = $json.fast_mode
 $thinkingEnabled = $json.thinking.enabled
 $effortLevel = $json.effort.level
 $usedPct = [int]($json.context_window.used_percentage)
@@ -144,6 +146,9 @@ if ($SHOW_MODEL) {
         $ec = switch ($effortLevel) { 'max' { $RD } 'xhigh' { $RD } 'high' { $YL } default { $GN } }
         $out += " ${ec}effort:${effortLevel}${R}"
     }
+    if ($SHOW_FAST -and $fastMode -eq $true) {
+        $out += " ${YL}fast:on${R}"
+    }
     $sep = " ${GR}|${R} "
 }
 if ($SHOW_PATH) {
@@ -159,22 +164,20 @@ if ($SHOW_CONTEXT) {
     $out += "${sep}$($L.ctx) ${cc}$(Make-Bar $usedPct)${R} ${cc}${usedPct}%${R} ${GR}${ctxUsedFmt}/${ctxTotalFmt}${R}"
     $sep = " ${GR}|${R} "
 }
-if ($SHOW_5H_LIMIT) {
+# Only show rate limits when Claude Code actually sends them (resets_at > 0).
+# Fast mode and some session states omit rate_limits entirely.
+if ($SHOW_5H_LIMIT -and $fiveHReset -gt 0) {
     $fc = Get-PctColor $fiveHPct
     $out += "${sep}$($L.h5) ${fc}$(Make-Bar $fiveHPct)${R} ${fc}${fiveHPct}%${R}"
-    if ($fiveHReset -gt 0) {
-        $d5 = $fiveHReset - [int](Get-Date -UFormat %s)
-        $out += " ${GR}$(Format-Time $d5 'hm')${R}"
-    }
+    $d5 = $fiveHReset - [int](Get-Date -UFormat %s)
+    $out += " ${GR}$(Format-Time $d5 'hm')${R}"
     $sep = " ${GR}|${R} "
 }
-if ($SHOW_7D_LIMIT) {
+if ($SHOW_7D_LIMIT -and $sevenDReset -gt 0) {
     $sc = Get-PctColor $sevenDPct
     $out += "${sep}$($L.d7) ${sc}$(Make-Bar $sevenDPct)${R} ${sc}${sevenDPct}%${R}"
-    if ($sevenDReset -gt 0) {
-        $d7 = $sevenDReset - [int](Get-Date -UFormat %s)
-        $out += " ${GR}$(Format-Time $d7 'dhm')${R}"
-    }
+    $d7 = $sevenDReset - [int](Get-Date -UFormat %s)
+    $out += " ${GR}$(Format-Time $d7 'dhm')${R}"
     $sep = " ${GR}|${R} "
 }
 if ($SHOW_COST -and $totalCost -and $totalCost -ne 0) {
@@ -183,7 +186,7 @@ if ($SHOW_COST -and $totalCost -and $totalCost -ne 0) {
 }
 if ($SHOW_COMMANDS -or $SHOW_VERSION) {
     $out += "$sep"
-    if ($SHOW_VERSION) { $out += "${GR}v1.0.26${R}" }
+    if ($SHOW_VERSION) { $out += "${GR}v1.0.27${R}" }
     if ($SHOW_VERSION -and $SHOW_COMMANDS) { $out += " ${GR}|${R} " }
     if ($SHOW_COMMANDS) { $out += "${D}${GR}$($L.set): npx cc-statusbar${R}" }
 }
