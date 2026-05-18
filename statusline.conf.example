@@ -10,6 +10,8 @@ SHOW_5H_LIMIT=true
 SHOW_7D_LIMIT=true
 SHOW_COST=false
 SHOW_COMMANDS=true
+SHOW_VERSION=true
+SHOW_EFFORT=true
 
 # Refresh interval in seconds (set in settings.json, shown here for reference)
 # REFRESH_INTERVAL=10

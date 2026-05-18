@@ -13,7 +13,7 @@ if (-not $input) { $input = [Console]::In.ReadToEnd() }
 # ===================================================
 $SHOW_MODEL=$true; $SHOW_PATH=$true; $SHOW_GIT_BRANCH=$true; $SHOW_CONTEXT=$true
 $SHOW_5H_LIMIT=$true; $SHOW_7D_LIMIT=$true; $SHOW_COST=$false; $SHOW_COMMANDS=$true
-$SHOW_VERSION=$true; $LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10
+$SHOW_VERSION=$true; $SHOW_EFFORT=$true; $LANGUAGE="en"; $BAR_STYLE="blocks"; $BAR_WIDTH=10
 
 $confPath = Join-Path $env:USERPROFILE ".claude\statusline.conf"
 if (-not (Test-Path $confPath)) { $confPath = Join-Path $HOME ".claude\statusline.conf" }
@@ -31,6 +31,7 @@ if (Test-Path $confPath) {
                 'SHOW_COST'       { $SHOW_COST = $v -eq 'true' }
                 'SHOW_COMMANDS'   { $SHOW_COMMANDS = $v -eq 'true' }
                 'SHOW_VERSION'    { $SHOW_VERSION = $v -eq 'true' }
+                'SHOW_EFFORT'     { $SHOW_EFFORT = $v -eq 'true' }
                 'LANGUAGE'        { $LANGUAGE = $v }
                 'BAR_STYLE'       { $BAR_STYLE = $v }
                 'BAR_WIDTH'       { $BAR_WIDTH = [int]$v }
@@ -50,6 +51,8 @@ if (-not $json) { exit }
 $model = $json.model.display_name
 $cwd = $json.workspace.current_dir; if (-not $cwd) { $cwd = $json.cwd }
 $exceeds200k = $json.exceeds_200k_tokens
+$thinkingEnabled = $json.thinking.enabled
+$effortLevel = $json.effort.level
 $usedPct = [int]($json.context_window.used_percentage)
 $ctxSize = [int]($json.context_window.context_window_size)
 $fiveHPct = [int]($json.rate_limits.five_hour.used_percentage)
@@ -127,7 +130,20 @@ $sep = ""
 
 if ($SHOW_MODEL) {
     $out += "${CY}${B}${model}${R}"
-    if ($exceeds200k -or ($ctxSize -gt 200000)) { $out += " ${GN}thinking:on${R}" } else { $out += " ${GR}thinking:off${R}" }
+    # Prefer thinking.enabled. Fallback to ctx_size > 200k for older Claude Code.
+    if ($thinkingEnabled -eq $true) {
+        $out += " ${GN}thinking:on${R}"
+    } elseif ($thinkingEnabled -eq $false) {
+        $out += " ${GR}thinking:off${R}"
+    } elseif ($exceeds200k -or ($ctxSize -gt 200000)) {
+        $out += " ${GN}thinking:on${R}"
+    } else {
+        $out += " ${GR}thinking:off${R}"
+    }
+    if ($SHOW_EFFORT -and $effortLevel) {
+        $ec = switch ($effortLevel) { 'max' { $RD } 'xhigh' { $RD } 'high' { $YL } default { $GN } }
+        $out += " ${ec}effort:${effortLevel}${R}"
+    }
     $sep = " ${GR}|${R} "
 }
 if ($SHOW_PATH) {
@@ -167,7 +183,7 @@ if ($SHOW_COST -and $totalCost -and $totalCost -ne 0) {
 }
 if ($SHOW_COMMANDS -or $SHOW_VERSION) {
     $out += "$sep"
-    if ($SHOW_VERSION) { $out += "${GR}v1.0.25${R}" }
+    if ($SHOW_VERSION) { $out += "${GR}v1.0.26${R}" }
     if ($SHOW_VERSION -and $SHOW_COMMANDS) { $out += " ${GR}|${R} " }
     if ($SHOW_COMMANDS) { $out += "${D}${GR}$($L.set): npx cc-statusbar${R}" }
 }

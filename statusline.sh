@@ -26,6 +26,7 @@ SHOW_7D_LIMIT=true
 SHOW_COST=false
 SHOW_COMMANDS=true
 SHOW_VERSION=true
+SHOW_EFFORT=true
 LANGUAGE=en
 BAR_STYLE=blocks
 BAR_WIDTH=10
@@ -66,6 +67,8 @@ _ea() {
 model=$(_es "display_name")
 cwd=$(_es "current_dir"); [ -z "$cwd" ] && cwd=$(_es "cwd")
 exceeds_200k=$(_e "exceeds_200k_tokens")
+thinking_enabled=$(_ea "thinking" "enabled")
+effort_level=$(_ea "effort" "level")
 used_pct=$(_e "used_percentage")
 five_h_pct=$(_ea "five_hour" "used_percentage")
 five_h_reset=$(_ea "five_hour" "resets_at")
@@ -175,10 +178,24 @@ sep=""
 if [ "$SHOW_MODEL" = "true" ]; then
     printf "${CY}${B}%s${R}" "$model"
     ctx_size_raw=$(_e "context_window_size")
-    if [ "$exceeds_200k" = "true" ] || [ "${ctx_size_raw:-0}" -gt 200000 ] 2>/dev/null; then
+    # Prefer thinking.enabled from JSON. Fallback to ctx_size > 200k for older Claude Code versions.
+    if [ "$thinking_enabled" = "true" ]; then
+        printf " ${GN}thinking:on${R}"
+    elif [ "$thinking_enabled" = "false" ]; then
+        printf " ${GR}thinking:off${R}"
+    elif [ "$exceeds_200k" = "true" ] || [ "${ctx_size_raw:-0}" -gt 200000 ] 2>/dev/null; then
         printf " ${GN}thinking:on${R}"
     else
         printf " ${GR}thinking:off${R}"
+    fi
+    # Effort level: low/medium/high/xhigh/max
+    if [ "$SHOW_EFFORT" = "true" ] && [ -n "$effort_level" ]; then
+        case "$effort_level" in
+            max|xhigh) ec="$RD" ;;
+            high)      ec="$YL" ;;
+            *)         ec="$GN" ;;
+        esac
+        printf " ${ec}effort:%s${R}" "$effort_level"
     fi
     sep=" ${GR}|${R} "
 fi
@@ -227,7 +244,7 @@ fi
 if [ "$SHOW_COMMANDS" = "true" ] || [ "$SHOW_VERSION" = "true" ]; then
     hint=""
     ver=""; cmd=""
-    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.25"
+    [ "$SHOW_VERSION" = "true" ] && ver="v1.0.26"
     [ "$SHOW_COMMANDS" = "true" ] && cmd="${L_SET}: npx cc-statusbar"
     printf "%b" "$sep"
     [ -n "$ver" ] && printf "${GR}%s${R}" "$ver"
